@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "baseline": "05f440e",
+  "model": {
+    "id": "fixture-translation",
+    "name": "Fixture Translation",
+    "path": "/fixture/models/translation.gguf",
+    "type": "gguf",
+    "is_translation": true,
+    "idle_timeout": 180
+  },
+  "decision": {
+    "status": "sleeping",
+    "current_model": "",
+    "current_model_id": "",
+    "models": [],
+    "active_requests": 0,
+    "device": "",
+    "idle_timeout": 180,
+    "idle_remaining": 0,
+    "auto_sleep_enabled": true,
+    "runtime_available": false,
+    "endpoint": "/v1/systemone",
+    "last_error": ""
+  },
+  "decision_request": {
+    "model": "laya-multilingual",
+    "state": {"boundaries": [{"left": "Hello.", "right": "Next sentence."}]},
+    "questions": {"boundary_0": {"type": "noul", "instructions": "Does right begin a new sentence?"}}
+  },
+  "decision_response": {
+    "answers": {"boundary_0": {"type": "noul", "noul": 0.9}},
+    "usage": {"input_tokens": 12, "output_tokens": 0}
+  },
+  "cases": [
+    {"name": "sleeping status", "method": "GET", "path": "/api/status", "code": 200,
+      "json": {"status": "sleeping", "current_model": "Fixture Translation", "current_model_id": "fixture-translation", "backend_type": "gguf", "is_translation": true, "idle_timeout": 180, "idle_remaining": 0, "auto_sleep_enabled": true, "active_requests": 0, "request_count": 0}},
+    {"name": "starting status", "method": "GET", "path": "/api/status", "setup": {"is_starting": true}, "code": 200, "json": {"status": "starting", "idle_remaining": 0}},
+    {"name": "health", "method": "GET", "path": "/health", "code": 200, "json": {"status": "ok", "llm_status": "sleeping", "current_model": "Fixture Translation"}},
+    {"name": "api health", "method": "GET", "path": "/api/health", "code": 200, "json": {"status": "ok", "llm_status": "sleeping"}},
+    {"name": "wake", "method": "POST", "path": "/api/wake", "code": 200, "json": {"status": "ok", "state": "running"}, "calls": ["start"]},
+    {"name": "start alias", "method": "GET", "path": "/api/start", "code": 200, "json": {"status": "ok", "state": "running"}, "calls": ["start"]},
+    {"name": "failed wake retains legacy HTTP 200", "method": "POST", "path": "/api/wake", "wake_ok": false, "code": 200, "json": {"status": "error", "state": "failed"}, "calls": ["start"]},
+    {"name": "sleep", "method": "POST", "path": "/api/sleep", "code": 200, "json": {"status": "ok", "state": "sleeping"}, "calls": ["stop"]},
+    {"name": "busy sleep", "method": "POST", "path": "/api/sleep", "busy": true, "code": 409, "json": {"error": {"message": "模型正被其他請求使用，請稍後重試"}}},
+    {"name": "switch query wins over body", "method": "POST", "path": "/api/switch?model=fixture-translation", "body": {"model": "ignored"}, "code": 200, "json": {"status": "ok", "current_model": "Fixture Translation"}, "switch_model": "fixture-translation", "calls": ["switch"]},
+    {"name": "switch JSON body", "method": "POST", "path": "/api/switch", "body": {"model": "fixture-translation"}, "code": 200, "json": {"status": "ok"}, "switch_model": "fixture-translation", "calls": ["switch"]},
+    {"name": "missing switch model", "method": "POST", "path": "/api/switch", "code": 400, "json": {"error": "缺少 model 參數"}},
+    {"name": "busy switch", "method": "GET", "path": "/api/switch?model=fixture-translation", "busy": true, "code": 409, "json": {"error": {"message": "模型正被其他請求使用，請稍後重試"}}},
+    {"name": "toggle auto sleep", "method": "POST", "path": "/api/toggle_auto_sleep", "code": 200, "json": {"status": "ok", "auto_sleep_enabled": false}},
+    {"name": "explicit auto sleep", "method": "GET", "path": "/api/auto_sleep?enabled=yes", "code": 200, "json": {"status": "ok", "auto_sleep_enabled": true}},
+    {"name": "explicit auto sleep off", "method": "POST", "path": "/api/auto_sleep?enabled=off", "code": 200, "json": {"status": "ok", "auto_sleep_enabled": false}},
+    {"name": "browser navigation", "method": "GET", "path": "/api/sleep", "headers": {"Accept": "text/html"}, "code": 303, "response_headers": {"location": "/status"}, "calls": ["stop"]},
+    {"name": "models passive", "method": "GET", "path": "/v1/models", "code": 200, "json": {"object": "list", "data": [{"id": "fixture-translation", "object": "model", "created": 1700000000, "owned_by": "local-llm"}, {"id": "/fixture/models/translation.gguf", "object": "model", "created": 1700000000, "owned_by": "local-llm"}, {"id": "default", "object": "model", "created": 1700000000, "owned_by": "local-llm"}]}},
+    {"name": "models trailing slash", "method": "GET", "path": "/v1/models/", "code": 200, "json": {"object": "list"}},
+    {"name": "model detail decoded", "method": "GET", "path": "/v1/models/fixture%20name", "code": 200, "json": {"id": "fixture name", "object": "model", "created": 1700000000, "owned_by": "local-llm"}},
+    {"name": "decision wake", "method": "POST", "path": "/api/decision/wake", "code": 200, "json": {"status": "ok"}, "calls": ["decision_wake"]},
+    {"name": "decision sleep", "method": "GET", "path": "/api/decision/sleep", "code": 200, "json": {"status": "ok"}, "calls": ["decision_stop"]},
+    {"name": "decision busy sleep", "method": "POST", "path": "/api/decision/sleep", "decision_busy": true, "code": 409, "json": {"error": {"message": "決策模型正在處理請求，請稍後重試"}}},
+    {"name": "decision toggle", "method": "POST", "path": "/api/decision/toggle_auto_sleep", "code": 200, "json": {"status": "ok"}, "decision_auto_sleep": false},
+    {"name": "decision POST only", "method": "GET", "path": "/v1/systemone", "code": 405, "json": {"error": {"message": "Use POST for typed decisions"}}},
+    {"name": "invalid decision", "method": "POST", "path": "/v1/systemone", "body": {}, "code": 400, "json": {"error": {"message": "Expected a JSON object with state and questions"}}},
+    {"name": "preflight", "method": "OPTIONS", "path": "/v1/chat/completions", "code": 204, "response_headers": {"access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "Content-Type, Authorization", "access-control-max-age": "86400"}},
+    {"name": "favicon", "method": "GET", "path": "/favicon.ico", "code": 204},
+    {"name": "not found", "method": "GET", "path": "/unknown", "code": 404},
+    {"name": "stop", "method": "POST", "path": "/api/stop", "code": 200, "json": {"status": "stopped"}, "calls": ["stop", "decision_stop"], "should_exit": true},
+    {"name": "stop alias", "method": "GET", "path": "/stop", "code": 200, "contains": "LLM watchdog", "calls": ["stop", "decision_stop"], "should_exit": true},
+    {"name": "shutdown alias", "method": "GET", "path": "/shutdown", "code": 200, "contains": "LLM watchdog", "calls": ["stop", "decision_stop"], "should_exit": true}
+  ]
+}
