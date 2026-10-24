@@ -36,7 +36,7 @@ if ($Action -eq 'Install') {
         if ($null -ne $value -and $value -ne $manifest) { throw "Refusing to replace another registration: $key" }
     }
     $body = [ordered]@{
-        name = $hostName; description = 'WUF Translate native launcher'; path = (Join-Path $package 'native-host.exe')
+        name = $hostName; description = 'WUF Watchdog native launcher'; path = (Join-Path $package 'native-host.exe')
         type = 'stdio'; allowed_origins = @('chrome-extension://iecdpfnjngfljdlpookikhidlbfbmidb/')
     } | ConvertTo-Json -Depth 4
     if (Test-Path -LiteralPath $manifest) {

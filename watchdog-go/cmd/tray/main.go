@@ -26,7 +26,7 @@ func run() error {
 	root := filepath.Dir(executable)
 	configPath := flag.String("config", filepath.Join(root, "launch.json"), "packaged launch config")
 	assets := flag.String("assets", filepath.Join(root, "resources", "icons"), "packaged icon assets")
-	swift := flag.String("swift", filepath.Join(root, "resources", "LLMMenuBar"), "retained macOS native UI executable")
+	swift := flag.String("swift", filepath.Join(root, "resources", "WUFMenuBar"), "retained macOS native UI executable")
 	showPanel := flag.Bool("show-panel", false, "open the Windows left-click panel at startup")
 	flag.Parse()
 	c, err := launch.LoadConfig(*configPath)

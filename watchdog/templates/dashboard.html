@@ -2,7 +2,10 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><title>LLM watchdog — 本機控制台</title>
+<meta name="color-scheme" content="light"><title>WUF Watchdog — 本機控制台</title>
+<meta name="theme-color" content="#f5f3ec">
+<meta name="description" content="WUF Watchdog 本機控制台：管理模型、連接 API，讓運算隨需喚醒。">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20fill%3D%22%23b43d1d%22%20fill-rule%3D%22evenodd%22%20d%3D%22M48.00%209.50Q47.00%206.00%2045.50%205.50Q44.00%205.00%2042.00%207.50Q40.00%2010.00%2038.00%2013.50Q36.00%2017.00%2033.00%2017.00Q30.00%2017.00%2027.00%2012.50Q24.00%208.00%2022.50%207.00Q21.00%206.00%2020.00%207.00Q19.00%208.00%2019.00%2012.00Q19.00%2016.00%2019.50%2019.00Q20.00%2022.00%2019.00%2023.50Q18.00%2025.00%2017.50%2027.00Q17.00%2029.00%2013.00%2031.00Q9.00%2033.00%207.50%2034.50Q6.00%2036.00%207.00%2038.50Q8.00%2041.00%2011.00%2043.00Q14.00%2045.00%2017.50%2045.00Q21.00%2045.00%2021.50%2048.50Q22.00%2052.00%2024.00%2054.50Q26.00%2057.00%2028.00%2058.50Q30.00%2060.00%2031.50%2060.00Q33.00%2060.00%2035.50%2057.50Q38.00%2055.00%2042.00%2052.50Q46.00%2050.00%2048.50%2047.50Q51.00%2045.00%2052.50%2042.00Q54.00%2039.00%2052.50%2035.50Q51.00%2032.00%2049.00%2029.00Q47.00%2026.00%2048.00%2023.50Q49.00%2021.00%2049.00%2017.00Q49.00%2013.00%2048.00%209.50Z%20M29.50%2019.50Q32.00%2018.00%2029.50%2019.00Q27.00%2020.00%2025.50%2022.00Q24.00%2024.00%2023.50%2026.50Q23.00%2029.00%2021.50%2030.50Q20.00%2032.00%2015.50%2033.50Q11.00%2035.00%2010.00%2036.00Q9.00%2037.00%2010.00%2038.50Q11.00%2040.00%2013.00%2041.00Q15.00%2042.00%2018.00%2042.00Q21.00%2042.00%2024.50%2041.00Q28.00%2040.00%2028.50%2040.50Q29.00%2041.00%2026.50%2043.00Q24.00%2045.00%2024.50%2048.00Q25.00%2051.00%2027.00%2053.50Q29.00%2056.00%2030.00%2056.50Q31.00%2057.00%2033.50%2055.00Q36.00%2053.00%2037.50%2052.00Q39.00%2051.00%2039.00%2049.50Q39.00%2048.00%2037.50%2046.50Q36.00%2045.00%2034.00%2044.50Q32.00%2044.00%2031.00%2042.50Q30.00%2041.00%2030.00%2039.50Q30.00%2038.00%2028.00%2036.50Q26.00%2035.00%2025.00%2033.50Q24.00%2032.00%2023.50%2030.50Q23.00%2029.00%2023.50%2027.00Q24.00%2025.00%2025.50%2023.00Q27.00%2021.00%2029.50%2019.50Z%20M27.00%2027.50Q27.00%2026.00%2028.50%2026.00Q30.00%2026.00%2031.00%2027.00Q32.00%2028.00%2031.50%2029.00Q31.00%2030.00%2030.00%2030.50Q29.00%2031.00%2028.00%2030.00Q27.00%2029.00%2027.00%2027.50Z%20M8.00%2035.50Q8.00%2034.00%2010.00%2034.00Q12.00%2034.00%2013.00%2034.50Q14.00%2035.00%2013.50%2036.00Q13.00%2037.00%2011.50%2037.50Q10.00%2038.00%209.00%2037.50Q8.00%2037.00%208.00%2035.50Z%20%22%2F%3E%3C%2Fsvg%3E">
 <style>
 :root {
   --paper:#f5f3ec;
@@ -10,7 +13,7 @@
   --ink:#242620;
   --muted:#686b61;
   --line:#d6d7cc;
-  --accent:#bf421f;
+  --accent:#b43d1d;
   --accent-soft:#f5e8dc;
   --green:#397044;
   --radius:14px;
@@ -22,8 +25,8 @@ body {
   margin:0;
   background:var(--paper);
   color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
-  font-size:15px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei UI","PingFang TC","Noto Sans TC",sans-serif;
+  font-size:16px;
   line-height:1.6}
 button,input {
   font:inherit}
@@ -49,7 +52,7 @@ a {
 .skip:focus {
   top:12px}
 .shell {
-  max-width:1500px;
+  max-width:1280px;
   margin:auto;
   display:block;
   min-height:100vh}
@@ -83,7 +86,7 @@ a {
   background:var(--accent)}
 .hero {
   display:grid;
-  grid-template-columns:1fr 245px;
+  grid-template-columns:minmax(0,1fr) 245px;
   align-items:center;
   gap:30px;
   padding:46px 0 40px}
@@ -93,7 +96,7 @@ a {
 .hero h1 {
   font-size:clamp(36px,4.3vw,62px);
   line-height:1.16;
-  letter-spacing:-.06em;
+  letter-spacing:-.04em;
   margin:0;
   font-weight:550}
 .hero h1 span {
@@ -129,8 +132,8 @@ a {
   height:124px;
   display:grid;
   place-items:center;
-  background:var(--accent);
-  color:var(--surface);
+  background:var(--surface);
+  color:var(--accent);
   border-radius:36px;
   transform:rotate(-9deg);
   box-shadow:8px 12px 0 #dfddd2;
@@ -138,8 +141,8 @@ a {
 .signal:hover .signal-center {
   transform:rotate(0)}
 .signal-center svg {
-  width:66px;
-  height:66px}
+  width:82px;
+  height:82px}
 .signal-label {
   position:absolute;
   bottom:-8px;
@@ -193,7 +196,7 @@ a {
   border-radius:7px;
   background:transparent;
   color:var(--ink);
-  transition:background .2s,color .2s,border-color .2s}
+  transition:background .2s,color .2s,border-color .2s,box-shadow .2s}
 .btn:hover:not(:disabled) {
   background:#e9e7dd;
   border-color:#9b9d90}
@@ -335,7 +338,7 @@ a {
   height:19px;
   padding:3px;
   border-radius:15px;
-  background:#77796f;
+  background:#686b61;
   flex-shrink:0}
 .switch-track:after {
   content:"";
@@ -378,12 +381,6 @@ a {
 .empty {
   padding:30px 12px;
   color:var(--muted)}
-.spinner {
-  animation:spin 1s linear infinite}
-@keyframes spin {
-  to {
-  transform:rotate(360deg)}
-}
 .decision-section {margin-top:32px;padding-top:24px;border-top:1px solid var(--line)}
 .decision-controls {display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px}
 .decision-controls .switch {width:auto;gap:18px}
@@ -421,7 +418,7 @@ dialog .actions {
   gap:8px;
   margin-top:24px}
 
-@media(min-width:1500px) {
+@media(min-width:1280px) {
   .shell {
   border-left:1px solid var(--line);
   border-right:1px solid var(--line)}
@@ -451,27 +448,87 @@ dialog .actions {
   transition:none!important}
 }
 
+/* Brand and interaction refinements. */
+.brand {display:flex;align-items:center;gap:12px;color:var(--ink)}
+.brand>svg {width:32px;height:32px;fill:currentColor;color:var(--accent);flex-shrink:0}
+.brand strong {display:block;font-size:19px;line-height:1.25;letter-spacing:-.035em;font-weight:650}
+.brand-caption {display:block;margin-top:5px;font-size:10px;letter-spacing:.09em;color:var(--muted)}
+.connection {font-size:12px;white-space:nowrap}
+.btn:active:not(:disabled),.model:active:not(:disabled) {background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.btn.primary:active:not(:disabled) {background:var(--accent);color:var(--surface)}
+.switch:active:not(:disabled) .switch-track {box-shadow:0 0 0 4px var(--accent-soft)}
+.model.active {box-shadow:inset 3px 0 var(--accent)}
+.model:focus-visible {position:relative;z-index:1;outline-offset:-3px}
+.switch:disabled {opacity:.65}
+#btn-refresh {width:44px;padding:10px}
+.signal-center svg {fill:currentColor}
+.signal-label {white-space:nowrap;font-size:10px;letter-spacing:.1em}
+.metric .value {font-variant-numeric:tabular-nums}
+#last-updated {font-variant-numeric:tabular-nums;white-space:nowrap}
+.model-state {min-width:52px;text-align:right}
+#main:focus {outline:none}
+@media(max-width:640px) {
+ .main {padding:24px 20px}
+ .topbar {align-items:flex-start;gap:12px;padding-bottom:20px}
+ .brand strong {font-size:18px}
+ .brand-caption {font-size:10px;letter-spacing:0}
+ .connection {max-width:110px;white-space:normal;font-size:11px;align-items:baseline}
+ .dot {flex-shrink:0}
+ .hero {grid-template-columns:minmax(0,1fr) 84px;gap:12px;padding:32px 0}
+ .hero h1 {font-size:clamp(28px,7.5vw,42px);line-height:1.3}
+ .eyebrow {font-size:9px;letter-spacing:.08em;margin-bottom:12px}
+ .hero-description {font-size:13px;margin-top:16px}
+ .signal {height:100px;transform:none}
+ .signal:before {width:80px;height:80px}
+ .signal:after {width:100px;height:100px;transform:none}
+ .signal-center {width:64px;height:64px;border-radius:20px;box-shadow:4px 6px 0 #dfddd2}
+ .signal-center svg {width:46px;height:46px}
+ .signal-label {display:none}
+ .summary {grid-template-columns:1fr 1fr}
+ .metric {padding:18px}
+ .metric:first-child {grid-column:1/-1;border-bottom:1px solid var(--line)}
+ .metric:nth-child(2) {border-left:0}
+ .label {margin-bottom:8px}
+ .value {font-size:16px}
+ .controls {gap:8px;margin:16px 0 28px}
+ .controls .danger {margin-left:0;font-size:13px}
+ .btn {padding:10px 12px;font-size:14px}
+ .content-grid {gap:24px}
+ .section-head h2 {font-size:19px}
+ .model {gap:10px;padding:18px 10px}
+ .model-name {font-size:13px}
+ .model-state {font-size:11px;min-width:44px}
+ .aside {grid-template-columns:1fr;padding:20px;gap:20px}
+ .policy {border-left:0;border-top:1px solid var(--line);padding:16px 0 0}
+ .decision-controls {gap:12px}
+ .decision-controls .switch {width:100%}
+ .footer {flex-direction:column;gap:8px;margin-top:32px}
+ dialog {padding:24px}
+ dialog .actions {flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce) {
+ .signal-center,.signal:hover .signal-center {transform:none}
+}
 </style>
 </head>
 <body>
 <svg hidden xmlns="http://www.w3.org/2000/svg"><defs>
-<symbol id="dog-sleeping" viewBox="0 0 64 48"><g fill="currentColor"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21 C16 19 19 18 21 12 C23 3 37 1 45 5 C49 7 49 10 50 13"/><path d="M5 21 C3 27 8 34 15 36 C21 39 27 35 30 43"/></g><path d="M45 6 C38 7 38 14 35 25 C33 34 36 43 42 44 C51 47 62 38 60 30 C56 23 54 14 50 9 C48 7 46 6 45 6Z"/><ellipse cx="6.5" cy="23" rx="3.5" ry="3"/><path d="M22 17 C24 20 27 20 29 19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></g></symbol>
-<symbol id="dog-ready" viewBox="0 0 64 48"><g fill="currentColor"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21 C16 19 19 18 21 12 C23 3 37 1 45 5 C49 7 49 10 50 13"/><path d="M5 21 C3 27 8 34 15 36 C21 39 27 35 30 43"/></g><path d="M45 6 C38 7 38 14 35 25 C33 34 36 43 42 44 C51 47 62 38 60 30 C56 23 54 14 50 9 C48 7 46 6 45 6Z"/><ellipse cx="6.5" cy="23" rx="3.5" ry="3"/><ellipse cx="26.5" cy="18" rx="3.5" ry="4"/></g></symbol>
-<symbol id="dog-running" viewBox="0 0 64 48"><g fill="currentColor"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21 C16 19 19 18 21 12 C23 3 37 1 45 5 C49 7 49 10 50 13"/><path d="M5 21 C3 27 9 31 18 31 C17 34 15 36 12 37 C15 42 23 40 26 40 C29 40 31 42 32 44"/></g><path d="M45 6 C38 7 38 14 35 25 C33 34 36 43 42 44 C51 47 62 38 60 30 C56 23 54 14 50 9 C48 7 46 6 45 6Z"/><ellipse cx="6.5" cy="23" rx="3.5" ry="3"/><ellipse cx="26.5" cy="18" rx="3.5" ry="4"/></g></symbol>
-<symbol id="power" viewBox="0 0 24 24"><path d="M12 3v9m-5-7a8 8 0 1 0 10 0"/></symbol>
+<symbol id="dog-sleeping" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M54.00 20.50Q53.00 18.00 50.00 17.00Q47.00 16.00 45.00 14.50Q43.00 13.00 41.00 13.50Q39.00 14.00 37.50 15.50Q36.00 17.00 33.00 17.00Q30.00 17.00 27.50 15.50Q25.00 14.00 23.00 13.50Q21.00 13.00 19.00 14.00Q17.00 15.00 14.50 17.50Q12.00 20.00 11.50 21.50Q11.00 23.00 13.00 23.50Q15.00 24.00 17.50 22.50Q20.00 21.00 19.50 23.50Q19.00 26.00 18.00 27.50Q17.00 29.00 13.00 31.00Q9.00 33.00 7.50 34.50Q6.00 36.00 7.00 38.50Q8.00 41.00 11.00 43.00Q14.00 45.00 17.50 45.00Q21.00 45.00 21.50 48.50Q22.00 52.00 24.00 54.50Q26.00 57.00 28.00 58.50Q30.00 60.00 31.50 60.00Q33.00 60.00 35.50 57.50Q38.00 55.00 42.00 52.50Q46.00 50.00 48.50 47.50Q51.00 45.00 52.50 42.00Q54.00 39.00 52.50 35.50Q51.00 32.00 49.00 29.00Q47.00 26.00 48.50 27.50Q50.00 29.00 52.00 29.00Q54.00 29.00 54.50 26.00Q55.00 23.00 54.00 20.50Z M29.50 19.50Q32.00 18.00 29.50 19.00Q27.00 20.00 25.50 22.00Q24.00 24.00 23.50 26.50Q23.00 29.00 21.50 30.50Q20.00 32.00 15.50 33.50Q11.00 35.00 10.00 36.00Q9.00 37.00 10.00 38.50Q11.00 40.00 13.00 41.00Q15.00 42.00 18.00 42.00Q21.00 42.00 24.50 41.00Q28.00 40.00 28.50 40.50Q29.00 41.00 26.50 43.00Q24.00 45.00 24.50 48.00Q25.00 51.00 27.00 53.50Q29.00 56.00 30.00 56.50Q31.00 57.00 33.50 55.00Q36.00 53.00 37.50 52.00Q39.00 51.00 39.00 49.50Q39.00 48.00 37.50 46.50Q36.00 45.00 34.00 44.50Q32.00 44.00 31.00 42.50Q30.00 41.00 30.00 39.50Q30.00 38.00 28.00 36.50Q26.00 35.00 25.00 33.50Q24.00 32.00 23.50 30.50Q23.00 29.00 23.50 27.00Q24.00 25.00 25.50 23.00Q27.00 21.00 29.50 19.50Z M26.00 28.00Q26.00 27.00 27.50 27.50Q29.00 28.00 30.50 27.50Q32.00 27.00 32.00 28.00Q32.00 29.00 30.50 29.50Q29.00 30.00 27.50 29.50Q26.00 29.00 26.00 28.00Z M8.00 35.50Q8.00 34.00 10.00 34.00Q12.00 34.00 13.00 34.50Q14.00 35.00 13.50 36.00Q13.00 37.00 11.50 37.50Q10.00 38.00 9.00 37.50Q8.00 37.00 8.00 35.50Z "/></symbol>
+<symbol id="dog-ready" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M48.00 9.50Q47.00 6.00 45.50 5.50Q44.00 5.00 42.00 7.50Q40.00 10.00 38.00 13.50Q36.00 17.00 33.00 17.00Q30.00 17.00 27.00 12.50Q24.00 8.00 22.50 7.00Q21.00 6.00 20.00 7.00Q19.00 8.00 19.00 12.00Q19.00 16.00 19.50 19.00Q20.00 22.00 19.00 23.50Q18.00 25.00 17.50 27.00Q17.00 29.00 13.00 31.00Q9.00 33.00 7.50 34.50Q6.00 36.00 7.00 38.50Q8.00 41.00 11.00 43.00Q14.00 45.00 17.50 45.00Q21.00 45.00 21.50 48.50Q22.00 52.00 24.00 54.50Q26.00 57.00 28.00 58.50Q30.00 60.00 31.50 60.00Q33.00 60.00 35.50 57.50Q38.00 55.00 42.00 52.50Q46.00 50.00 48.50 47.50Q51.00 45.00 52.50 42.00Q54.00 39.00 52.50 35.50Q51.00 32.00 49.00 29.00Q47.00 26.00 48.00 23.50Q49.00 21.00 49.00 17.00Q49.00 13.00 48.00 9.50Z M29.50 19.50Q32.00 18.00 29.50 19.00Q27.00 20.00 25.50 22.00Q24.00 24.00 23.50 26.50Q23.00 29.00 21.50 30.50Q20.00 32.00 15.50 33.50Q11.00 35.00 10.00 36.00Q9.00 37.00 10.00 38.50Q11.00 40.00 13.00 41.00Q15.00 42.00 18.00 42.00Q21.00 42.00 24.50 41.00Q28.00 40.00 28.50 40.50Q29.00 41.00 26.50 43.00Q24.00 45.00 24.50 48.00Q25.00 51.00 27.00 53.50Q29.00 56.00 30.00 56.50Q31.00 57.00 33.50 55.00Q36.00 53.00 37.50 52.00Q39.00 51.00 39.00 49.50Q39.00 48.00 37.50 46.50Q36.00 45.00 34.00 44.50Q32.00 44.00 31.00 42.50Q30.00 41.00 30.00 39.50Q30.00 38.00 28.00 36.50Q26.00 35.00 25.00 33.50Q24.00 32.00 23.50 30.50Q23.00 29.00 23.50 27.00Q24.00 25.00 25.50 23.00Q27.00 21.00 29.50 19.50Z M27.00 27.50Q27.00 26.00 28.50 26.00Q30.00 26.00 31.00 27.00Q32.00 28.00 31.50 29.00Q31.00 30.00 30.00 30.50Q29.00 31.00 28.00 30.00Q27.00 29.00 27.00 27.50Z M8.00 35.50Q8.00 34.00 10.00 34.00Q12.00 34.00 13.00 34.50Q14.00 35.00 13.50 36.00Q13.00 37.00 11.50 37.50Q10.00 38.00 9.00 37.50Q8.00 37.00 8.00 35.50Z "/></symbol>
+<symbol id="dog-running" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M48.00 9.50Q47.00 6.00 45.50 5.50Q44.00 5.00 42.00 7.50Q40.00 10.00 38.00 13.50Q36.00 17.00 33.00 17.00Q30.00 17.00 27.00 12.50Q24.00 8.00 22.50 7.00Q21.00 6.00 20.00 7.00Q19.00 8.00 19.00 12.00Q19.00 16.00 19.50 19.00Q20.00 22.00 19.00 23.50Q18.00 25.00 17.50 27.00Q17.00 29.00 13.00 31.00Q9.00 33.00 7.50 34.50Q6.00 36.00 7.00 38.50Q8.00 41.00 10.50 41.50Q13.00 42.00 15.50 42.50Q18.00 43.00 16.00 45.00Q14.00 47.00 14.00 48.00Q14.00 49.00 16.00 50.00Q18.00 51.00 20.50 50.50Q23.00 50.00 23.50 49.00Q24.00 48.00 23.00 50.00Q22.00 52.00 24.00 54.50Q26.00 57.00 28.00 58.50Q30.00 60.00 31.50 60.00Q33.00 60.00 35.50 57.50Q38.00 55.00 42.00 52.50Q46.00 50.00 48.50 47.50Q51.00 45.00 52.50 42.00Q54.00 39.00 52.50 35.50Q51.00 32.00 49.00 29.00Q47.00 26.00 48.00 23.50Q49.00 21.00 49.00 17.00Q49.00 13.00 48.00 9.50Z M29.50 19.50Q32.00 18.00 29.50 19.00Q27.00 20.00 25.50 22.00Q24.00 24.00 23.50 26.50Q23.00 29.00 21.50 30.50Q20.00 32.00 15.50 33.50Q11.00 35.00 10.00 36.00Q9.00 37.00 10.00 38.50Q11.00 40.00 13.00 40.50Q15.00 41.00 18.00 41.50Q21.00 42.00 24.50 40.50Q28.00 39.00 28.50 39.50Q29.00 40.00 27.50 42.00Q26.00 44.00 23.50 45.50Q21.00 47.00 19.00 47.50Q17.00 48.00 18.00 46.00Q19.00 44.00 21.00 43.50Q23.00 43.00 23.50 44.50Q24.00 46.00 24.50 48.50Q25.00 51.00 27.00 53.50Q29.00 56.00 30.00 56.50Q31.00 57.00 33.50 55.00Q36.00 53.00 37.50 52.00Q39.00 51.00 39.00 49.50Q39.00 48.00 37.50 46.50Q36.00 45.00 34.00 44.50Q32.00 44.00 31.00 42.50Q30.00 41.00 30.00 39.50Q30.00 38.00 28.00 36.50Q26.00 35.00 25.00 33.50Q24.00 32.00 23.50 30.50Q23.00 29.00 23.50 27.00Q24.00 25.00 25.50 23.00Q27.00 21.00 29.50 19.50Z M27.00 27.50Q27.00 26.00 28.50 26.00Q30.00 26.00 31.00 27.00Q32.00 28.00 31.50 29.00Q31.00 30.00 30.00 30.50Q29.00 31.00 28.00 30.00Q27.00 29.00 27.00 27.50Z M8.00 35.50Q8.00 34.00 10.00 34.00Q12.00 34.00 13.00 34.50Q14.00 35.00 13.50 36.00Q13.00 37.00 11.50 37.50Q10.00 38.00 9.00 37.50Q8.00 37.00 8.00 35.50Z "/></symbol>
 <symbol id="moon" viewBox="0 0 24 24"><path d="M20 14A8.5 8.5 0 0 1 10 4a8.5 8.5 0 1 0 10 10Z"/></symbol>
 <symbol id="refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></symbol>
 <symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 5V4H4v11h1"/></symbol>
-<symbol id="grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
-<symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8Z"/></symbol>
+<symbol id="exit" viewBox="0 0 24 24"><path d="M9 4H4v16h5m6-13 5 5-5 5M9 12h11"/></symbol>
 </defs></svg>
 <a class="skip" href="#main">跳至控制台</a>
 <div class="shell">
-<main id="main" class="main">
-<header class="topbar"><span class="micro">LLM watchdog / 本機控制台</span><span id="connection" class="connection"><i class="dot"></i><span id="connection-label">正在連線</span></span></header>
-<section class="hero" aria-labelledby="hero-title"><div><p class="micro eyebrow">Quietly working. Always here.</p><h1 id="hero-title">跨越語言。<span id="hero-state">隨時，待命。</span></h1><p class="hero-description">你的本機翻譯與推論引擎。<br>在需要時喚醒，讓每一次理解自然發生。</p></div>
+<main id="main" class="main" tabindex="-1">
+<header class="topbar"><div class="brand"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="#dog-ready"/></svg><div><strong>WUF Watchdog</strong><span class="brand-caption">本機控制台 / LOCAL ENGINE CONTROL</span></div></div><span id="connection" class="connection" role="status" aria-atomic="true"><i class="dot"></i><span id="connection-label">正在連線</span></span></header>
+<section class="hero" aria-labelledby="hero-title"><div><p class="micro eyebrow">LOCAL FIRST. ALWAYS READY.</p><h1 id="hero-title">本機運算，<span id="hero-state">隨時待命。</span></h1><p class="hero-description">你的本機翻譯與推論引擎。<br>在需要時喚醒，讓每一次理解自然發生。</p></div>
 <div class="signal" aria-hidden="true"><div class="signal-center"><svg><use id="dog-state" href="#dog-sleeping"/></svg></div>
-<span class="signal-label micro">Language, connected.</span></div>
+<span class="signal-label micro">YOUR LOCAL COMPANION</span></div>
 </section>
 <section class="summary" aria-label="服務狀態"><div class="metric"><span class="label">目前模型</span><div class="value" id="cur-model">讀取中</div>
 <span class="sub" id="cur-type">本機推論引擎</span></div>
@@ -480,14 +537,14 @@ dialog .actions {
 <div class="metric"><span class="label">休眠策略</span><div class="value" id="cur-strategy">—</div>
 <span class="sub" id="strategy-detail">依目前模型設定</span></div>
 </section>
-<div class="controls" aria-label="引擎操作"><button id="btn-wake" class="btn primary" data-action="wake"><svg class="icon" aria-hidden="true"><use href="#power"/></svg>啟動引擎</button>
+<div class="controls" aria-label="引擎操作"><button id="btn-wake" class="btn primary" data-action="wake"><svg class="icon" aria-hidden="true"><use href="#play"/></svg>啟動引擎</button>
 <button id="btn-sleep" class="btn" data-action="sleep"><svg class="icon" aria-hidden="true"><use href="#moon"/></svg>立即休眠</button>
 <button id="btn-refresh" class="btn quiet" aria-label="重新整理狀態" title="重新整理狀態"><svg class="icon" aria-hidden="true"><use href="#refresh"/></svg></button>
-<button id="btn-stop" class="btn quiet danger"><svg class="icon" aria-hidden="true"><use href="#power"/></svg>退出 LLM watchdog</button>
+<button id="btn-stop" class="btn quiet danger"><svg class="icon" aria-hidden="true"><use href="#exit"/></svg>退出 WUF Watchdog</button>
 </div>
 <div class="content-grid"><div><section aria-labelledby="models-title"><div class="section-head"><h2 id="models-title">選擇你的引擎<span style="color:var(--accent)">。</span></h2><span id="models-count" class="count"></span></div>
 <div id="model-list" class="models"></div>
-<p class="sub">選取模型即可載入，LLM watchdog會自動完成切換。</p></section>
+<p class="sub">選取模型即可載入，WUF Watchdog 會自動完成切換。</p></section>
 <section class="decision-section" aria-labelledby="decision-title">
 <div class="section-head"><h2 id="decision-title">決策模型<span style="color:var(--accent)">。</span></h2><span id="decision-count" class="count"></span></div>
 <div id="decision-model-list" class="models"></div>
@@ -495,7 +552,7 @@ dialog .actions {
 <div class="decision-controls"><button id="btn-decision-sleep" class="btn" data-action="decision/sleep"><svg class="icon" aria-hidden="true"><use href="#moon"/></svg>決策模型休眠</button>
 <button id="btn-decision-auto" class="switch" role="switch" aria-checked="true" data-action="decision/toggle_auto_sleep"><span>閒置 3 分鐘自動休眠</span><span class="switch-track" aria-hidden="true"></span></button></div>
 <code class="decision-endpoint">http://127.0.0.1:__PUBLIC_PORT__/v1/systemone</code>
-<p class="sub">供新幹線判斷字幕句子邊界。請求時自動喚醒，和翻譯引擎分別管理。</p>
+<p class="sub">供 WUF Translate 判斷字幕句子邊界。請求時自動喚醒，和翻譯引擎分別管理。</p>
 </section></div>
 <aside class="aside"><div><span class="micro">01 / Connection</span><h2>連接你的工作流程</h2><p>將此 API 網址貼入支援 OpenAI 相容介面的應用程式。</p><code id="endpoint-text" class="endpoint">http://127.0.0.1:__PUBLIC_PORT__/v1</code><button id="btn-copy" class="btn"><svg class="icon" aria-hidden="true"><use href="#copy"/></svg><span>複製 API 網址</span></button>
 </div>
@@ -503,10 +560,10 @@ dialog .actions {
 <p>閒置時卸載模型，釋放運算資源。下次請求時自動喚醒。</p></div>
 </aside>
 </div>
-<footer class="footer"><span>LLM watchdog <span aria-hidden="true">↔</span> 在你的裝置，掌握每一次運算。</span><span id="last-updated">等待同步</span></footer>
+<footer class="footer"><span>WUF Watchdog <span aria-hidden="true">↔</span> 在你的裝置，掌握每一次運算。</span><span id="last-updated">等待同步</span></footer>
 </main></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<dialog id="stop-dialog" aria-labelledby="stop-title"><h2 id="stop-title">結束 LLM watchdog？</h2><p>這會關閉本機模型、API 服務。下次可透過 LLM watchdog 啟動捷徑重新啟動。</p><div class="actions"><button id="cancel-stop" class="btn" autofocus>繼續執行</button>
+<dialog id="stop-dialog" aria-labelledby="stop-title" aria-describedby="stop-description"><h2 id="stop-title">結束 WUF Watchdog？</h2><p id="stop-description">這會關閉本機模型、API 服務。下次可透過 WUF Watchdog 啟動捷徑重新啟動。</p><div class="actions"><button id="cancel-stop" class="btn" autofocus>繼續執行</button>
 <button id="confirm-stop" class="btn primary">確定退出</button>
 </div>
 </dialog>
@@ -514,10 +571,9 @@ dialog .actions {
 let currentData=__INITIAL_STATE_JSON__;
 let busy=false,connected=true,stopped=false,toastTimer,modelKey='',decisionKey='';
 const $=id=>document.getElementById(id);
-const icon=name=>`<svg class="icon" aria-hidden="true"><use href="#${name}"/></svg>`;
 function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').className='toast'+(error?' error':'');$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,4500)}
 function setConnection(ok){connected=ok;$('connection').className='connection'+(ok?'':' offline');$('connection-label').textContent=ok?'本機服務已連線':'連線中斷 · 正在重試';updateDog();setButtons()}
-function setButtons(){const s=currentData.status;for(const el of document.querySelectorAll('[data-action],#btn-toggle-auto,#btn-stop,.model'))el.disabled=busy||!connected||stopped;$('btn-wake').disabled=busy||!connected||stopped||s==='running'||s==='starting';$('btn-sleep').disabled=busy||!connected||stopped||s!=='running';$('btn-refresh').disabled=busy||stopped;for(const el of document.querySelectorAll('.model.active:not(.decision-model)'))el.disabled=busy||!connected||stopped||s==='running'||s==='starting';const d=currentData.decision||{},disabled=busy||!connected||stopped;for(const el of document.querySelectorAll('.decision-model'))el.disabled=disabled||d.runtime_available===false||d.status==='running'||d.status==='starting';$('btn-decision-sleep').disabled=disabled||d.status!=='running'||d.active_requests>0;$('btn-decision-auto').disabled=disabled||!(d.models||[]).length}
+function setButtons(){document.querySelector('.content-grid').setAttribute('aria-busy',String(busy));const s=currentData.status;for(const el of document.querySelectorAll('[data-action],#btn-toggle-auto,#btn-stop,.model'))el.disabled=busy||!connected||stopped;$('btn-wake').disabled=busy||!connected||stopped||s==='running'||s==='starting';$('btn-sleep').disabled=busy||!connected||stopped||s!=='running';$('btn-refresh').disabled=busy||stopped;for(const el of document.querySelectorAll('.model.active:not(.decision-model)'))el.disabled=busy||!connected||stopped||s==='running'||s==='starting';const d=currentData.decision||{},disabled=busy||!connected||stopped;for(const el of document.querySelectorAll('.decision-model'))el.disabled=disabled||d.runtime_available===false||d.status==='running'||d.status==='starting';$('btn-decision-sleep').disabled=disabled||d.status!=='running'||d.active_requests>0;$('btn-decision-auto').disabled=disabled||!(d.models||[]).length}
 function updateUI(data){currentData=data;const s=data.status,auto=data.auto_sleep_enabled!==false,t=Number(data.idle_timeout)||0;const names={running:data.active_requests>0?'運行中':'準備就緒',starting:'載入中',sleeping:'休眠待命'};$('cur-model').textContent=data.current_model||'尚未選擇模型';const m=(data.models||[]).find(m=>m.id===data.current_model_id);$('cur-type').textContent=m?String(m.type).toUpperCase()+' / 本機推論引擎':'本機推論引擎';$('cur-status').textContent=names[s]||'狀態未知';$('cur-status').style.color=s==='running'?'var(--green)':'var(--muted)';$('cur-strategy').textContent=auto&&t>0?`${t/60} 分鐘後休眠`:'保持常駐';$('strategy-detail').textContent=auto&&t>0?'閒置時自動釋放資源':'模型保持載入，隨時回應';$('btn-toggle-auto').setAttribute('aria-checked',String(auto));updateCountdown();renderModels(data.models||[]);renderDecision(data.decision||{});$('last-updated').textContent='最近同步 '+new Date().toLocaleTimeString('zh-TW',{hour12:false});setButtons()}
 function updateDog(){const s=currentData.status,d=currentData.decision||{};const awake=['running','starting'].includes(s)||['running','starting'].includes(d.status);const active=(s==='running'&&currentData.active_requests>0)||(d.status==='running'&&d.active_requests>0);$('dog-state').setAttribute('href','#dog-'+(!connected||stopped||!awake?'sleeping':active?'running':'ready'))}
 function renderDecision(data={}) {
@@ -529,16 +585,16 @@ function renderDecision(data={}) {
   const key=JSON.stringify([models,status]);if(key===decisionKey)return;decisionKey=key;
   const focused=document.activeElement?.classList.contains('decision-model');
   $('decision-model-list').replaceChildren();
-  models.forEach((m,i)=>{const b=document.createElement('button');b.className='model decision-model active';b.setAttribute('aria-label','載入 '+m.name);const index=document.createElement('span');index.className='model-index';index.textContent=String(i+1).padStart(2,'0');const copy=document.createElement('span');copy.className='model-copy';const name=document.createElement('span');name.className='model-name';name.textContent=m.name;const meta=document.createElement('span');meta.className='model-meta';meta.textContent='多語言字幕決策 · 獨立啟停';copy.append(name,meta);const label=document.createElement('span');label.className='model-state';label.textContent=status==='running'?'執行中 ↗':status==='starting'?'載入中…':'載入 ↗';b.append(index,copy,label);b.onclick=()=>action('decision/wake','載入決策模型');$('decision-model-list').append(b);if(focused)b.focus()});
+  models.forEach((m,i)=>{const b=document.createElement('button');b.className='model decision-model'+(['running','starting'].includes(status)?' active':'');b.setAttribute('aria-pressed',String(['running','starting'].includes(status)));b.setAttribute('aria-label','載入 '+m.name);const index=document.createElement('span');index.className='model-index';index.textContent=String(i+1).padStart(2,'0');const copy=document.createElement('span');copy.className='model-copy';const name=document.createElement('span');name.className='model-name';name.textContent=m.name;const meta=document.createElement('span');meta.className='model-meta';meta.textContent='多語言字幕決策 · 獨立啟停';copy.append(name,meta);const label=document.createElement('span');label.className='model-state';label.textContent=status==='running'?'執行中 ↗':status==='starting'?'載入中…':'載入 ↗';b.append(index,copy,label);b.onclick=()=>action('decision/wake','載入決策模型');$('decision-model-list').append(b);if(focused)b.focus()});
 }
-function updateCountdown(){updateDog();$('hero-state').textContent=!connected?'暫時，離線。':currentData.status==='running'?'一切，就緒。':currentData.status==='starting'?'正在，準備。':'隨時，待命。';$('status-detail').textContent=!connected?'連線中斷，顯示最後同步狀態':currentData.status==='running'?(currentData.auto_sleep_enabled!==false&&currentData.idle_timeout>0?`閒置倒數 ${Math.max(0,currentData.idle_remaining||0)} 秒`:'等待下一次請求'):currentData.status==='starting'?'正在準備模型，請稍候':'需要時，自動喚醒'}
+function updateCountdown(){updateDog();$('hero-state').textContent=!connected?'暫時離線。':currentData.status==='running'?'一切就緒。':currentData.status==='starting'?'正在準備。':'隨時待命。';$('status-detail').textContent=!connected?'連線中斷，顯示最後同步狀態':currentData.status==='running'?(currentData.auto_sleep_enabled!==false&&currentData.idle_timeout>0?`閒置倒數 ${Math.max(0,currentData.idle_remaining||0)} 秒`:'等待下一次請求'):currentData.status==='starting'?'正在準備模型，請稍候':'需要時，自動喚醒'}
 function renderModels(models){const key=JSON.stringify([models,currentData.current_model_id,currentData.current_model,currentData.status]);if(key===modelKey)return;modelKey=key;const focusId=document.activeElement?.dataset.modelId;$('models-count').textContent=String(models.length).padStart(2,'0')+' ENGINES';$('model-list').replaceChildren();if(!models.length){const p=document.createElement('p');p.className='empty';p.textContent='尚未找到可用模型。請檢查模型設定後重新整理。';$('model-list').append(p)}models.forEach((m,i)=>{const selected=m.id===currentData.current_model_id||m.name===currentData.current_model;const b=document.createElement('button');b.className='model'+(selected?' active':'');b.dataset.modelId=m.id;b.setAttribute('aria-pressed',String(selected));const index=document.createElement('span');index.className='model-index';index.textContent=String(i+1).padStart(2,'0');const copy=document.createElement('span');copy.className='model-copy';const name=document.createElement('span');name.className='model-name';name.textContent=m.name;const meta=document.createElement('span');meta.className='model-meta';const type=document.createElement('span');type.className='type';type.textContent=String(m.type||'local').toUpperCase();const policy=document.createElement('span');policy.textContent=m.idle_timeout>0?`${Math.round(m.idle_timeout/60)} 分鐘休眠`:'常駐';meta.append(type,policy);copy.append(name,meta);const state=document.createElement('span');state.className='model-state';state.textContent=selected?(currentData.status==='running'?'執行中 ↗':currentData.status==='starting'?'載入中…':'已選定'):'載入 ↗';b.append(index,copy,state);b.addEventListener('click',()=>action('switch?model='+encodeURIComponent(m.id),`切換至 ${m.name}`));$('model-list').append(b);if(focusId===m.id)b.focus()})}
-async function fetchStatus(manual=false){if(stopped)return;try{const res=await fetch('/api/status',{signal:AbortSignal.timeout(5000)});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(stopped)return;setConnection(true);updateUI(data);if(manual)toast('狀態已更新')}catch(e){if(stopped)return;setConnection(false);updateCountdown();if(manual)toast('無法連線到LLM watchdog，請確認服務已啟動。',true)}}
-async function action(path,label){if(busy||!connected||stopped)return;busy=true;setButtons();toast(label+'中，請稍候…');try{const res=await fetch('/api/'+path,{method:'POST'});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(data.status!=='ok')throw Error(data.message||'服務未完成操作');toast(label+'完成')}catch(e){toast(label+'失敗：'+e.message,true)}finally{busy=false;await fetchStatus();setButtons()}}
+async function fetchStatus(manual=false){if(stopped)return;try{const res=await fetch('/api/status',{signal:AbortSignal.timeout(5000)});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(stopped)return;setConnection(true);updateUI(data);if(manual)toast('狀態已更新')}catch(e){if(stopped)return;setConnection(false);updateCountdown();if(manual)toast('無法連線到 WUF Watchdog，請確認服務已啟動。',true)}}
+async function action(path,label){if(busy||!connected||stopped)return;busy=true;setButtons();toast(label+'中，請稍候…');try{const res=await fetch('/api/'+path,{method:'POST',signal:AbortSignal.timeout(135000)});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(data.status!=='ok')throw Error(data.message||'服務未完成操作');toast(label+'完成')}catch(e){toast(label+'失敗：'+e.message,true)}finally{busy=false;await fetchStatus();setButtons()}}
 $('btn-wake').onclick=()=>action('wake','啟動引擎');$('btn-sleep').onclick=()=>action('sleep','模型休眠');$('btn-toggle-auto').onclick=()=>action('toggle_auto_sleep','更新休眠策略');$('btn-refresh').onclick=()=>fetchStatus(true);
 $('btn-decision-sleep').onclick=()=>action('decision/sleep','決策模型休眠');$('btn-decision-auto').onclick=()=>action('decision/toggle_auto_sleep','更新決策模型休眠策略');
 $('btn-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('endpoint-text').textContent);toast('API 網址已複製')}catch{toast('無法自動複製，請選取上方 API 網址手動複製。',true)}};
-$('btn-stop').onclick=()=>$('stop-dialog').showModal();$('cancel-stop').onclick=()=>$('stop-dialog').close();$('confirm-stop').onclick=async()=>{$('stop-dialog').close();if(busy)return;busy=true;setButtons();try{const res=await fetch('/api/stop',{method:'POST',signal:AbortSignal.timeout(5000)});if(!res.ok)throw Error('HTTP '+res.status);stopped=true;updateDog();$('connection-label').textContent='LLM watchdog已結束';$('connection').className='connection offline';$('cur-status').textContent='已停止';$('status-detail').textContent='重新啟動 LLM watchdog 即可繼續';toast('LLM watchdog已結束，可以關閉此分頁。')}catch(e){toast('未能確認退出結果，正在重新確認連線。',true)}finally{busy=false;setButtons();if(!stopped)await fetchStatus()}};
+$('btn-stop').onclick=()=>$('stop-dialog').showModal();$('cancel-stop').onclick=()=>$('stop-dialog').close();$('confirm-stop').onclick=async()=>{$('stop-dialog').close();if(busy)return;busy=true;setButtons();try{const res=await fetch('/api/stop',{method:'POST',signal:AbortSignal.timeout(5000)});if(!res.ok)throw Error('HTTP '+res.status);stopped=true;updateDog();$('connection-label').textContent='WUF Watchdog 已結束';$('connection').className='connection offline';$('cur-status').textContent='已停止';$('status-detail').textContent='重新啟動 WUF Watchdog 即可繼續';toast('WUF Watchdog 已結束，可以關閉此分頁。')}catch(e){toast('未能確認退出結果，正在重新確認連線。',true)}finally{busy=false;setButtons();if(!stopped)await fetchStatus()}};
 setInterval(()=>{if(!stopped&&!busy)fetchStatus()},2000);setInterval(()=>{if(connected&&!stopped&&currentData.status==='running'&&currentData.auto_sleep_enabled!==false&&currentData.idle_remaining>0){currentData.idle_remaining--;updateCountdown()}},1000);setConnection(true);updateUI(currentData);
 </script>
 </body></html>

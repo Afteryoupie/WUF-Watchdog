@@ -114,7 +114,7 @@ func (c *controller) ensurePanel() error {
 	}
 	// An owned popup stays out of the taskbar without WS_EX_TOOLWINDOW, which
 	// also lets accessibility tools discover its controls.
-	hwnd, _, err := createWindow.Call(0x8, pointer(name), pointer(wide("LLM watchdog")), 0x80000000|0x2000000, 0, 0, 392, 510, c.hwnd, 0, instance, 0)
+	hwnd, _, err := createWindow.Call(0x8, pointer(name), pointer(wide("WUF Watchdog")), 0x80000000|0x2000000, 0, 0, 392, 510, c.hwnd, 0, instance, 0)
 	if hwnd == 0 {
 		return fmt.Errorf("create panel: %w", err)
 	}
@@ -252,7 +252,7 @@ func (p *nativePanel) refresh() {
 	previous := p.view
 	p.view = panelState(data, time.Since(updated), busy, feedback)
 	title := c.title()
-	labels := map[uint32]string{1: title, 2: p.view.status, 3: p.view.countdown, 4: p.view.detail, 100: p.view.model, 20: p.view.primary, 21: p.view.auto, 130: p.view.decision, 40: "開啟控制台\tCtrl+D", 41: "複製 API 網址\tCtrl+C", 50: "退出 LLM watchdog\tCtrl+Q"}
+	labels := map[uint32]string{1: title, 2: p.view.status, 3: p.view.countdown, 4: p.view.detail, 100: p.view.model, 20: p.view.primary, 21: p.view.auto, 130: p.view.decision, 40: "開啟控制台\tCtrl+D", 41: "複製 API 網址\tCtrl+C", 50: "退出 WUF Watchdog\tCtrl+Q"}
 	for id, label := range labels {
 		if p.controls[id].text != label {
 			p.controls[id].text = label

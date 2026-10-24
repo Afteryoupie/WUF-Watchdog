@@ -10,9 +10,9 @@ final class GuardianStatusView: NSView {
 
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 100))
-        let title = NSTextField(labelWithString: "LLM watchdog")
+        let title = NSTextField(labelWithString: "WUF Watchdog")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
-        title.frame = NSRect(x: 18, y: 72, width: 110, height: 22)
+        title.frame = NSRect(x: 18, y: 72, width: 128, height: 22)
         status.font = .systemFont(ofSize: 11, weight: .medium)
         status.alignment = .right
         status.frame = NSRect(x: 130, y: 73, width: 152, height: 20)
@@ -30,7 +30,7 @@ final class GuardianStatusView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }
 
-class LLMMenuBarController: NSObject, NSMenuDelegate {
+class WUFMenuBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
     private let panel = GuardianStatusView()
@@ -117,7 +117,7 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
         item("複製 API 網址", "doc.on.doc", #selector(copyApiUrl), key: "c")
         refreshItem = item("重新連線", "arrow.clockwise", #selector(reconnect))
         menu.addItem(.separator())
-        quitItem = item("退出 LLM watchdog…", "power", #selector(quitApp), key: "q")
+        quitItem = item("退出 WUF Watchdog…", "power", #selector(quitApp), key: "q")
     }
 
     private func startPolling() {
@@ -180,7 +180,7 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
         panel.progress.isHidden = true
         if !isConnected {
             panel.countdown.stringValue = "尚未連線"
-            panel.detail.stringValue = "正在重試；請確認LLM watchdog已啟動"
+            panel.detail.stringValue = "正在重試；請確認 WUF Watchdog 已啟動"
         } else if busy || starting {
             panel.countdown.stringValue = starting ? "載入中" : "處理中"
             panel.detail.stringValue = "操作完成後會自動更新"
@@ -245,55 +245,43 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    // Left-facing profile approved in the design preview. Transparent template
-    // artwork follows macOS appearance; expression alone communicates activity.
+    // Use the same quadratic contours as the Windows icons and dashboard.
+    // Loading once keeps artwork and state changes independent of file I/O.
+    private lazy var iconContours: [String: [[[Double]]]] = {
+        let file = URL(fileURLWithPath: CommandLine.arguments[0])
+            .deletingLastPathComponent().appendingPathComponent("watchdog-vectors.json")
+        guard let data = try? Data(contentsOf: file),
+              let shapes = try? JSONDecoder().decode([String: [[[Double]]]].self, from: data) else { return [:] }
+        return shapes
+    }()
+
     private func guardianIcon(status: String) -> NSImage {
         let awake = status == "running" || status == "starting"
         let speaking = status == "running" && (activeRequests > 0 || (decisionSnapshot["active_requests"] as? Int ?? 0) > 0)
-        let image = NSImage(size: NSSize(width: 24, height: 18), flipped: false) { _ in
+        let state = !awake ? "sleeping" : speaking ? "running" : "ready"
+        guard let contours = iconContours[state], !contours.isEmpty else {
+            let fallback = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: "WUF Watchdog") ?? NSImage(size: NSSize(width: 22, height: 22))
+            fallback.isTemplate = true
+            return fallback
+        }
+        let image = NSImage(size: NSSize(width: 22, height: 22), flipped: false) { _ in
             guard let c = NSGraphicsContext.current?.cgContext else { return false }
             c.saveGState()
             defer { c.restoreGState() }
-            c.translateBy(x: 0, y: 18)
-            c.scaleBy(x: 0.375, y: -0.375)
+            c.translateBy(x: 0, y: 22)
+            c.scaleBy(x: 22.0 / 64, y: -22.0 / 64)
             c.setFillColor(NSColor.black.cgColor)
-            c.setStrokeColor(NSColor.black.cgColor)
-            c.setLineWidth(2.6)
-            c.setLineCap(.round)
-            c.setLineJoin(.round)
-            // Forehead, long muzzle and rounded lower jaw.
-            c.move(to: CGPoint(x: 5, y: 21))
-            c.addCurve(to: CGPoint(x: 21, y: 12), control1: CGPoint(x: 16, y: 19), control2: CGPoint(x: 19, y: 18))
-            c.addCurve(to: CGPoint(x: 45, y: 5), control1: CGPoint(x: 23, y: 3), control2: CGPoint(x: 37, y: 1))
-            c.addCurve(to: CGPoint(x: 50, y: 13), control1: CGPoint(x: 49, y: 7), control2: CGPoint(x: 49, y: 10))
-            c.strokePath()
-            c.move(to: CGPoint(x: 5, y: 21))
-            if speaking {
-                c.addCurve(to: CGPoint(x: 18, y: 31), control1: CGPoint(x: 3, y: 27), control2: CGPoint(x: 9, y: 31))
-                c.addCurve(to: CGPoint(x: 12, y: 37), control1: CGPoint(x: 17, y: 34), control2: CGPoint(x: 15, y: 36))
-                c.addCurve(to: CGPoint(x: 26, y: 40), control1: CGPoint(x: 15, y: 42), control2: CGPoint(x: 23, y: 40))
-                c.addCurve(to: CGPoint(x: 32, y: 44), control1: CGPoint(x: 29, y: 40), control2: CGPoint(x: 31, y: 42))
-            } else {
-                c.addCurve(to: CGPoint(x: 15, y: 36), control1: CGPoint(x: 3, y: 27), control2: CGPoint(x: 8, y: 34))
-                c.addCurve(to: CGPoint(x: 30, y: 43), control1: CGPoint(x: 21, y: 39), control2: CGPoint(x: 27, y: 35))
+            for loop in contours where loop.count >= 3 && loop.allSatisfy({ $0.count == 2 }) {
+                guard let first = loop.first, let last = loop.last else { continue }
+                c.move(to: CGPoint(x: (last[0] + first[0]) / 2, y: (last[1] + first[1]) / 2))
+                for (i, point) in loop.enumerated() {
+                    let next = loop[(i + 1) % loop.count]
+                    c.addQuadCurve(to: CGPoint(x: (point[0] + next[0]) / 2, y: (point[1] + next[1]) / 2),
+                                   control: CGPoint(x: point[0], y: point[1]))
+                }
+                c.closePath()
             }
-            c.strokePath()
-            // Floppy ear, deliberately solid for recognition at menu-bar size.
-            c.move(to: CGPoint(x: 45, y: 6))
-            c.addCurve(to: CGPoint(x: 35, y: 25), control1: CGPoint(x: 38, y: 7), control2: CGPoint(x: 38, y: 14))
-            c.addCurve(to: CGPoint(x: 42, y: 44), control1: CGPoint(x: 33, y: 34), control2: CGPoint(x: 36, y: 43))
-            c.addCurve(to: CGPoint(x: 60, y: 30), control1: CGPoint(x: 51, y: 47), control2: CGPoint(x: 62, y: 38))
-            c.addCurve(to: CGPoint(x: 50, y: 9), control1: CGPoint(x: 56, y: 23), control2: CGPoint(x: 54, y: 14))
-            c.addCurve(to: CGPoint(x: 45, y: 6), control1: CGPoint(x: 48, y: 7), control2: CGPoint(x: 46, y: 6))
-            c.fillPath()
-            c.fillEllipse(in: CGRect(x: 3, y: 20, width: 7, height: 6))
-            if awake {
-                c.fillEllipse(in: CGRect(x: 23, y: 14, width: 7, height: 8))
-            } else {
-                c.move(to: CGPoint(x: 22, y: 17))
-                c.addCurve(to: CGPoint(x: 29, y: 19), control1: CGPoint(x: 24, y: 20), control2: CGPoint(x: 27, y: 20))
-                c.strokePath()
-            }
+            c.drawPath(using: .eoFill)
             return true
         }
         image.isTemplate = true
@@ -305,7 +293,7 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
         button.title = ""
         button.image = guardianIcon(status: status)
         let labels = ["running": activeRequests > 0 || (decisionSnapshot["active_requests"] as? Int ?? 0) > 0 ? "運行中 · 處理請求" : "準備就緒", "starting": "正在載入", "sleeping": "休眠待命", "disconnected": "尚未連線"]
-        let label = "LLM watchdog · \(labels[status] ?? "狀態未知") · \(currentModel)"
+        let label = "WUF Watchdog · \(labels[status] ?? "狀態未知") · \(currentModel)"
         button.toolTip = label
         button.setAccessibilityLabel(label)
     }
@@ -364,10 +352,10 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
     }
     @objc private func quitApp() {
         let alert = NSAlert()
-        alert.messageText = "結束LLM watchdog？"
-        alert.informativeText = "將停止模型與本機 API 服務。需要時可重新開啟LLM watchdog app。"
+        alert.messageText = "結束 WUF Watchdog？"
+        alert.informativeText = "將停止模型與本機 API 服務。需要時可重新開啟 WUF Watchdog app。"
         alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "結束 LLM watchdog")
+        alert.addButton(withTitle: "結束 WUF Watchdog")
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         if !isConnected { NSApp.terminate(nil); return }
@@ -378,5 +366,5 @@ class LLMMenuBarController: NSObject, NSMenuDelegate {
 // 主程式入口
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
-let controller = LLMMenuBarController()
+let controller = WUFMenuBarController()
 app.run()

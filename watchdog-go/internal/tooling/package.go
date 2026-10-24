@@ -86,7 +86,7 @@ func Plist(values map[string]any) ([]byte, error) {
 }
 
 func HostManifest(app string) map[string]any {
-	return map[string]any{"name": launch.HostName, "description": "WUF Translate native launcher", "type": "stdio", "path": filepath.Join(app, "Contents", "MacOS", "native-host"), "allowed_origins": []string{launch.ExtensionOrigin}}
+	return map[string]any{"name": launch.HostName, "description": "WUF Watchdog native launcher", "type": "stdio", "path": filepath.Join(app, "Contents", "MacOS", "native-host"), "allowed_origins": []string{launch.ExtensionOrigin}}
 }
 func LoginAgent(app string) map[string]any {
 	return map[string]any{"Label": LoginLabel, "ProgramArguments": []string{filepath.Join(app, "Contents", "MacOS", "app"), "--quiet"}, "RunAtLoad": true, "ProcessType": "Background"}
@@ -112,6 +112,7 @@ func PopulateMac(repo, app string) error {
 	}
 	files := map[string]string{
 		"watchdog/templates/dashboard.html": "dashboard.html", "watchdog/assets/guardian.icns": "guardian.icns", "watchdog-go/LICENSE": "LICENSE",
+		"watchdog/assets/watchdog-vectors.json": "watchdog-vectors.json",
 	}
 	for _, name := range []string{"__init__.py", "decision_protocol.py", "laya_backend.py"} {
 		files["watchdog/"+name] = "laya/watchdog/" + name
@@ -121,12 +122,12 @@ func PopulateMac(repo, app string) error {
 			return err
 		}
 	}
-	config := launch.Config{Core: "watchdog", Tray: "tray", BaseURL: "http://127.0.0.1:8080", Arguments: []string{"--dashboard", "../Resources/dashboard.html", "--laya-root", "../Resources/laya"}, TrayArguments: []string{"--config", "launch.json", "--swift", "../Resources/LLMMenuBar"}}
+	config := launch.Config{Core: "watchdog", Tray: "tray", BaseURL: "http://127.0.0.1:8080", Arguments: []string{"--dashboard", "../Resources/dashboard.html", "--laya-root", "../Resources/laya"}, TrayArguments: []string{"--config", "launch.json", "--swift", "../Resources/WUFMenuBar"}}
 	data, _ := json.MarshalIndent(config, "", "  ")
 	if err := writeNew(filepath.Join(macos, "launch.json"), data); err != nil {
 		return err
 	}
-	info, err := Plist(map[string]any{"CFBundleName": "LLM watchdog", "CFBundleDisplayName": "LLM watchdog", "CFBundleIdentifier": LoginLabel, "CFBundleExecutable": "app", "CFBundleIconFile": "guardian.icns", "CFBundlePackageType": "APPL", "CFBundleVersion": "1", "LSUIElement": true, "NSHighResolutionCapable": true})
+	info, err := Plist(map[string]any{"CFBundleName": "WUF Watchdog", "CFBundleDisplayName": "WUF Watchdog", "CFBundleIdentifier": LoginLabel, "CFBundleExecutable": "app", "CFBundleIconFile": "guardian.icns", "CFBundlePackageType": "APPL", "CFBundleVersion": "1", "LSUIElement": true, "NSHighResolutionCapable": true})
 	if err != nil {
 		return err
 	}
@@ -169,7 +170,7 @@ func BuildMac(repo, app, goExe, swiftc string, layoutOnly bool) error {
 			return err
 		}
 	}
-	if err := run(swiftc, repo, nil, "-O", filepath.Join(repo, "watchdog", "LLMMenuBar.swift"), "-o", filepath.Join(resources, "LLMMenuBar")); err != nil {
+	if err := run(swiftc, repo, nil, "-O", filepath.Join(repo, "watchdog", "WUFMenuBar.swift"), "-o", filepath.Join(resources, "WUFMenuBar")); err != nil {
 		return err
 	}
 	cmd := exec.Command(goExe, "env", "GOROOT")

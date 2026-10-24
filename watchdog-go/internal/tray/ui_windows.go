@@ -137,7 +137,7 @@ func Run(ctx context.Context, client *Client, assets, swift string, ownerPID int
 	if value, _, err := registerClass.Call(pointer(&class)); value == 0 {
 		return fmt.Errorf("register tray window: %w", err)
 	}
-	hwnd, _, err := createWindow.Call(0, pointer(className), pointer(wide("WUF Translate Watchdog")), 0, 0, 0, 0, 0, 0, 0, instance, 0)
+	hwnd, _, err := createWindow.Call(0, pointer(className), pointer(wide("WUF Watchdog")), 0, 0, 0, 0, 0, 0, 0, instance, 0)
 	if hwnd == 0 {
 		return fmt.Errorf("create tray window: %w", err)
 	}
@@ -249,10 +249,10 @@ func (c *controller) refreshIcon(operation uintptr) bool {
 func (c *controller) title() string {
 	if c.client.BaseURL != "http://127.0.0.1:8080" {
 		if origin, err := url.Parse(c.client.BaseURL); err == nil {
-			return "LLM watchdog · " + origin.Port()
+			return "WUF Watchdog · " + origin.Port()
 		}
 	}
-	return "LLM watchdog"
+	return "WUF Watchdog"
 }
 
 func processAlive(pid int) bool {
@@ -365,7 +365,7 @@ func (c *controller) showMenu() {
 	c.append(menu, 41, "複製 API 網址", true, false)
 	c.append(menu, 42, "重新整理狀態", true, false)
 	separator(menu)
-	c.append(menu, 50, "退出 LLM watchdog", true, false)
+	c.append(menu, 50, "退出 WUF Watchdog", true, false)
 	c.updatePopup()
 	var cursor point
 	getCursor.Call(pointer(&cursor))

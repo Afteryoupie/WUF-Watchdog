@@ -32,7 +32,7 @@ func put(t *testing.T, path, text string) {
 func fixtureRepo(t *testing.T) string {
 	t.Helper()
 	repo := t.TempDir()
-	for _, file := range []string{"watchdog/templates/dashboard.html", "watchdog/assets/guardian.icns", "watchdog-go/LICENSE", "watchdog/__init__.py", "watchdog/decision_protocol.py", "watchdog/laya_backend.py"} {
+	for _, file := range []string{"watchdog/templates/dashboard.html", "watchdog/assets/guardian.icns", "watchdog/assets/watchdog-vectors.json", "watchdog-go/LICENSE", "watchdog/__init__.py", "watchdog/decision_protocol.py", "watchdog/laya_backend.py"} {
 		put(t, filepath.Join(repo, filepath.FromSlash(file)), file)
 	}
 	return repo
@@ -57,7 +57,7 @@ func TestMacPackagePathsAndNoManagementPython(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := readPlist(data)
-	if err != nil || info["CFBundleExecutable"] != "app" || info["LSUIElement"] != true {
+	if err != nil || info["CFBundleExecutable"] != "app" || info["LSUIElement"] != true || info["CFBundleName"] != "WUF Watchdog" || info["CFBundleDisplayName"] != "WUF Watchdog" {
 		t.Fatalf("plist %v %v", info, err)
 	}
 	entries, err := os.ReadDir(filepath.Join(app, "Contents", "Resources", "laya", "watchdog"))
@@ -71,6 +71,13 @@ func TestMacPackagePathsAndNoManagementPython(t *testing.T) {
 	}
 	if config.Core != "watchdog" || config.Tray != "tray" {
 		t.Fatal(config)
+	}
+	if !reflect.DeepEqual(config.TrayArguments, []string{"--config", "launch.json", "--swift", "../Resources/WUFMenuBar"}) {
+		t.Fatal("native menu path does not match packaged WUFMenuBar", config.TrayArguments)
+	}
+	vectors, err := os.ReadFile(filepath.Join(app, "Contents", "Resources", "watchdog-vectors.json"))
+	if err != nil || string(vectors) != "watchdog/assets/watchdog-vectors.json" {
+		t.Fatal("native menu artwork missing from package", err)
 	}
 	if _, err := os.Stat(filepath.Join(app, "Contents", "MacOS", "app")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("layout must not invent binaries")

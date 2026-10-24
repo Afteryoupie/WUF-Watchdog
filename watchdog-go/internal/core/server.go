@@ -303,7 +303,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, 200, map[string]string{"status": "stopped"})
 		} else {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			io.WriteString(w, "<!DOCTYPE html><title>LLM watchdog</title><p>LLM watchdog已停止</p>")
+			io.WriteString(w, "<!DOCTYPE html><title>WUF Watchdog</title><p>WUF Watchdog已停止</p>")
 		}
 		http.NewResponseController(w).Flush()
 		go a.Close()

@@ -98,7 +98,7 @@ func run() error {
 	defer server.Close()
 	serving := make(chan error, 1)
 	go func() { serving <- core.Serve(server, listener) }()
-	fmt.Printf("WUF watchdog listening on http://%s\n", listener.Addr())
+	fmt.Printf("WUF Watchdog listening on http://%s\n", listener.Addr())
 	signals, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ticker := time.NewTicker(time.Second)

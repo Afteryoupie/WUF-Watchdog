@@ -3,6 +3,10 @@
 Go service, native browser host, tray application and management tools.
 The browser extension is the independent `../WUF-Translate` project.
 
+The dashboard, tray, native menus, app display names and launcher messages use
+**WUF Watchdog**. See [UI validation](docs/UI-REVIEW-20261024.md) for the current
+design checks and intentionally preserved compatibility identifiers.
+
 ## Layout
 
 - `watchdog-go/`: Go module, commands, tests and portable test fixtures.

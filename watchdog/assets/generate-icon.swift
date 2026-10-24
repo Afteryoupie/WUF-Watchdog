@@ -1,9 +1,9 @@
-// Resize the shared LLM watchdog identity into a macOS iconset.
-// Redraw the master with generate_watchdog_icon.py; no separate artwork to drift.
+// Resize the shared WUF Watchdog identity into a macOS iconset.
+// Generate the master from watchdog-vectors.json with wuf-tool icons.
 import Cocoa
 let output = URL(fileURLWithPath: CommandLine.arguments[1])
 let master = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("guardian-1024.png")
-guard let source = NSImage(contentsOf: master) else { fatalError("Missing LLM watchdog master icon") }
+guard let source = NSImage(contentsOf: master) else { fatalError("Missing WUF Watchdog master icon") }
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 for size in [16,32,128,256,512] {
     for scale in [1,2] {

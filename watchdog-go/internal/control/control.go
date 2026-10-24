@@ -141,12 +141,12 @@ func Run(ctx context.Context, configPath, action, testRegistryKey string, input 
 		if !reply.OK {
 			return errors.New(reply.Error)
 		}
-		fmt.Fprintf(output, "Go Watchdog 已啟動：%s (PID %d)\n", c.BaseURL, reply.PID)
+		fmt.Fprintf(output, "WUF Watchdog 已啟動：%s (PID %d)\n", c.BaseURL, reply.PID)
 	case "stop":
 		if err := Stop(ctx, c); err != nil {
 			return err
 		}
-		fmt.Fprintln(output, "Go Watchdog 已關閉。")
+		fmt.Fprintln(output, "WUF Watchdog 已關閉。")
 	case "status":
 		health, err := launch.Probe(ctx, c.BaseURL)
 		if errors.Is(err, launch.ErrAbsent) {

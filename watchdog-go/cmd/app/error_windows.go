@@ -7,7 +7,7 @@ import (
 )
 
 func showError(message string) {
-	title, _ := syscall.UTF16PtrFromString("WUF Translate")
+	title, _ := syscall.UTF16PtrFromString("WUF Watchdog")
 	body, _ := syscall.UTF16PtrFromString(message)
 	syscall.NewLazyDLL("user32.dll").NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(body)), uintptr(unsafe.Pointer(title)), 0x10)
 }

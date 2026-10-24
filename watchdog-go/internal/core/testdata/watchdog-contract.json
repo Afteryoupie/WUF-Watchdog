@@ -64,7 +64,7 @@
     {"name": "favicon", "method": "GET", "path": "/favicon.ico", "code": 204},
     {"name": "not found", "method": "GET", "path": "/unknown", "code": 404},
     {"name": "stop", "method": "POST", "path": "/api/stop", "code": 200, "json": {"status": "stopped"}, "calls": ["stop", "decision_stop"], "should_exit": true},
-    {"name": "stop alias", "method": "GET", "path": "/stop", "code": 200, "contains": "LLM watchdog", "calls": ["stop", "decision_stop"], "should_exit": true},
-    {"name": "shutdown alias", "method": "GET", "path": "/shutdown", "code": 200, "contains": "LLM watchdog", "calls": ["stop", "decision_stop"], "should_exit": true}
+    {"name": "stop alias", "method": "GET", "path": "/stop", "code": 200, "contains": "WUF Watchdog", "calls": ["stop", "decision_stop"], "should_exit": true},
+    {"name": "shutdown alias", "method": "GET", "path": "/shutdown", "code": 200, "contains": "WUF Watchdog", "calls": ["stop", "decision_stop"], "should_exit": true}
   ]
 }

@@ -9,7 +9,7 @@ macOS 選單列、Windows 系統匣及網頁控制台均可啟動、休眠和切
 - 控制：`POST /api/decision/wake`、`/api/decision/sleep`、`/api/decision/toggle_auto_sleep`。
 - 內部服務只監聽 `127.0.0.1:8082`。翻譯服務仍使用 8081。
 - 模型不會列入 OpenAI 聊天模型清單，不會因決策請求切換翻譯模型。
-- 模型記錄：系統暫存目錄中的 `llm-watchdog-laya.log`。
+- 模型記錄：資料目錄中的 `decision/model.log`。
 
 ## 安裝
 
@@ -49,7 +49,7 @@ Windows RX 9070 GRE 已使用 ROCm 7.2.1 實測 GPU 張量運算、Laya 載入�
 ROCm 7.13／7.14 在本機會回報 `device kernel image is invalid`，因此固定使用已驗證的 7.2.1。
 服務自動選擇可用裝置，沒有 GPU 時使用 CPU；`LAYA_DEVICE` 可指定 `mps`、`cuda` 或 `cpu`。
 
-## 新幹線
+## WUF Translate
 
 重新載入擴充功能後，舊 Jev 設定會轉為本機 Laya 並啟用。不需金鑰。
 既有 `jevEnabled`、`jevApiUrl` 與字幕邊界欄位保留以兼容已開啟的內容腳本；
