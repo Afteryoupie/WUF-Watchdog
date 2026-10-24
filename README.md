@@ -2,10 +2,10 @@
 
 WUF Watchdog 幫你啟動、切換及暫停電腦上的 AI 模型，並提供繁體中文控制台。搭配 [WUF Translate](https://github.com/Afteryoupie/WUF-Translate)，就能讓瀏覽器把網頁或 YouTube 字幕送到自己的電腦翻譯。
 
-不需要先學會 LLM 的原理。照著下面的步驟，先完成「安裝 → 載入一個模型 → 測試翻譯」，之後再更換模型或開啟進階功能。
+不需要先學會 LLM 的原理。macOS 預設使用 Apple Foundation Models，也就是 Apple 提供的本機 AI；Windows 則另外準備 GGUF 模型。先完成安裝與測試，再考慮其他模型或進階功能。
 
 > **目前安裝狀態（2026-10-25）：尚未提供可直接下載的 WUF Watchdog 安裝包。**
-> 目前需要依本頁步驟，將原始碼建置成可執行的程式。這個步驟只需在安裝或更新時進行，日常使用可以直接開啟應用程式。若不熟悉終端機，可以請人協助完成第一次安裝。
+> 一般使用者應下載已建置的 Windows 套件或 macOS APP，不需要自行編譯 EXE／APP。現階段公開安裝包仍待維護者提供；取得完整程式套件後，依下方流程設定。需要自行建置的人請見[開發者建置文件](docs/BUILD.md)，它不是一般使用者的安裝前置需求。
 >
 > 未來的安裝包會放在 [Releases 發布頁](https://github.com/Afteryoupie/WUF-Watchdog/releases)。GitHub 的 **Code → Download ZIP** 是原始碼，不是安裝包；只下載並解壓縮，還不能直接使用。
 
@@ -14,28 +14,31 @@ WUF Watchdog 幫你啟動、切換及暫停電腦上的 AI 模型，並提供繁
 | 名稱 | 白話說明 | 是否需要 |
 | --- | --- | --- |
 | WUF Watchdog | 管理 AI 的程式，負責啟動、切換與閒置休眠 | 需要 |
-| 模型檔 | AI 學到的內容；本指南使用副檔名為 `.gguf` 的檔案 | 至少一個 |
-| llama.cpp 的 `llama-server` | 讀取模型、實際產生文字的工具 | 本指南需要 |
-| Go | 把本專案的原始碼轉成應用程式的工具 | 自行建置時需要 |
+| Apple Foundation Models | macOS 提供的本機 AI，模型由 Apple 管理 | macOS 預設使用 |
+| GGUF 模型檔 | 另外下載的 AI 模型檔案 | Windows 需要；macOS 選用 |
+| llama.cpp 的 `llama-server` | 讀取 GGUF 模型、實際產生文字的工具 | Windows 需要；macOS 的 Apple 模式不需要 |
+| Go／Swift 編譯工具 | 維護者用來製作安裝包 | 一般使用者不需要 |
 | WUF Translate | 瀏覽器擴充功能，負責讀取原文、顯示譯文 | 要翻譯網頁或字幕時需要另外安裝 |
 | Laya | 協助字幕情境判斷的另一個模型 | 選用，第一次安裝先跳過 |
 
-**安裝 Watchdog 不會一併下載模型，也不會安裝瀏覽器擴充功能。** 使用本指南的基本功能不需要 Python、Node.js、ChatGPT 帳號或 API 金鑰。
+**macOS 的 Apple 模型由系統下載及管理；Windows 的 GGUF 模型需另外準備。Watchdog 不會安裝瀏覽器擴充功能。** 使用本指南的基本功能不需要 Python、Node.js、ChatGPT 帳號或 API 金鑰。
 
-目前 Windows 建置腳本產生 **x64** 套件，適用於 Intel／AMD 的 64 位元 Windows；Windows ARM 電腦不在這份入門流程的範圍內。macOS 請在要使用的 Mac 上建置，產生原生 `.app`。Linux 暫不提供本頁的桌面安裝流程。
+目前 Windows 建置腳本產生 **x64** 套件，適用於 Intel／AMD 的 64 位元 Windows；Windows ARM 電腦不在這份入門流程的範圍內。macOS 的 Apple 預設流程需要支援 Apple Intelligence 的 Mac 與 macOS 27，直接使用原生 `.app`。Linux 暫不提供本頁的桌面安裝流程。
 
-模型大小、記憶體與顯示晶片都會影響速度；模型檔的容量也不等於執行時需要的記憶體。先用下方的小模型確認流程，再嘗試較大的翻譯模型。電腦可以載入模型，不代表一定能跟上影片播放速度。
+模型大小、記憶體與顯示晶片都會影響速度；模型檔的容量也不等於執行時需要的記憶體。Windows 可先用下方的小模型確認流程；macOS 先用系統 Apple 模型。電腦可以載入模型，不代表一定能跟上影片播放速度。
 
 ## 安裝順序
 
-1. [下載一個測試模型](#1-下載一個測試模型)。
-2. 依你的系統選擇 [Windows 安裝](#2a-windows-安裝)或 [macOS 安裝](#2b-macos-安裝)。兩段只需選一段。
+1. **macOS**：直接看 [macOS 安裝](#2b-macos-安裝)，先準備 Apple Intelligence，不用下載測試模型。
+2. **Windows**：先[下載一個測試模型](#1-下載一個測試模型)，再看 [Windows 安裝](#2a-windows-安裝)。
 3. [開啟控制台，確認模型能運作](#3-第一次啟動確認安裝成功)。
 4. [連接 WUF Translate](#4-連接瀏覽器開始翻譯)。
 
 下面的指令一次執行一個區塊，等完成後再往下進行。路徑若與你的電腦不同，請改成實際位置；路徑兩側的引號要保留。
 
 ## 1. 下載一個測試模型
+
+**本節供 Windows 使用；macOS 使用預設 Apple Foundation Models 時直接跳到第 2B 節。**
 
 先使用 Qwen 官方提供的 [Qwen3-0.6B-GGUF 檔案頁](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/tree/main)。在 **Files** 分頁找到 **`Qwen3-0.6B-Q8_0.gguf`**，按檔案旁的下載按鈕，等待下載完成。
 
@@ -44,7 +47,7 @@ WUF Watchdog 幫你啟動、切換及暫停電腦上的 AI 模型，並提供繁
 建立一個固定的模型資料夾，將下載的 `.gguf` 檔直接放進去：
 
 - **Windows**：本指南使用 `C:\WUF\Models`。
-- **macOS**：在你的個人資料夾中建立 `LLM`，再在裡面建立 `Models`，也就是 `~/LLM/Models`。
+- **macOS 選用 GGUF 時**：在你的個人資料夾中建立 `LLM`，再在裡面建立 `Models`，也就是 `~/LLM/Models`；使用 Apple 預設模型可略過。
 
 例如 Windows 完成後應該是：
 
@@ -58,10 +61,10 @@ C:\WUF\Models\Qwen3-0.6B-Q8_0.gguf
 
 以下使用 **PowerShell**。在開始選單搜尋「PowerShell」並開啟，一般使用者身分即可；不需要為了本指南以系統管理員身分執行。
 
-### A. 準備 Go、原始碼與模型執行工具
+### A. 準備程式套件與模型執行工具
 
-1. 到 [Go 官方下載頁](https://go.dev/dl/)下載 Windows x64 的 `.msi` 安裝程式，依畫面完成安裝。本專案要求 Go **1.24 以上版本**，可使用官方目前提供的穩定版。官方安裝說明見 [Download and install](https://go.dev/doc/install)。
-2. 在本 GitHub 專案頁按 **Code → Download ZIP**，解壓縮後，把直接包含 `README.md`、`windows`、`watchdog-go` 的資料夾放到 **`C:\WUF\WUF-Watchdog`**。避免多包一層 `WUF-Watchdog-main`。
+1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases)取得已建置的 Windows x64 完整套件，解壓縮至 `C:\WUF\Watchdog`。**目前尚未發布此附件；若頁面沒有套件，這一步暫時無法從公開下載完成。** 維護者可依[建置文件](docs/BUILD.md)製作套件。
+2. 確認 `C:\WUF\Watchdog` 直接包含 `app.exe`、`watchdog.exe`、`tray.exe`、`native-host.exe`、`wuf-tool.exe`、`launch.json`、`install-wuf.ps1` 及 `resources` 資料夾。不要只複製單一 EXE。
 3. 到 [llama.cpp 官方 Releases](https://github.com/ggml-org/llama.cpp/releases)，展開有程式附件的版本之 **Assets**，找名稱包含 **`bin-win-cpu-x64.zip`** 的附件。此處先使用 CPU 版確認流程；不要下載 Source code 或只有 `cudart` 的附件。若最新版本只有標記檔，往下找有二進位套件的版本。
 4. 將 llama.cpp 的 ZIP 完整解壓縮至 **`C:\WUF\llama.cpp`**，確認其中有 **`llama-server.exe`**。保留同包的 DLL 等檔案，不要只抽出 EXE。
 
@@ -69,10 +72,10 @@ C:\WUF\Models\Qwen3-0.6B-Q8_0.gguf
 
 ```text
 C:\WUF\
-├─ WUF-Watchdog\
-│  ├─ README.md
-│  ├─ watchdog-go\
-│  └─ windows\
+├─ Watchdog\
+│  ├─ app.exe
+│  ├─ launch.json
+│  └─ resources\
 ├─ llama.cpp\
 │  └─ llama-server.exe  （及同包其他檔案）
 └─ Models\
@@ -81,25 +84,7 @@ C:\WUF\
 
 如果解壓縮後 `llama-server.exe` 在更深一層，請在後面的設定改填該 EXE 的實際完整路徑。
 
-### B. 建立 WUF Watchdog 程式
-
-安裝 Go 後，關閉並重新開啟 PowerShell，再執行：
-
-```powershell
-& 'C:\Program Files\Go\bin\go.exe' version
-```
-
-看到 `go version` 和版本號後，執行下方指令。若 Go 安裝到其他位置，兩處 Go 路徑都要改成實際位置。
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\WUF-Watchdog\windows\build-wuf.ps1' -GoExecutable 'C:\Program Files\Go\bin\go.exe' -OutputDirectory 'C:\WUF\Watchdog'
-```
-
-這次執行的 `Bypass` 只套用於該 PowerShell 程序，不必變更整台電腦的執行原則。首次建置可能需要連線下載 Go 工具鏈，請等它結束。
-
-看到 **`Built Windows amd64 package: C:\WUF\Watchdog`** 表示建置成功。輸出資料夾必須尚未存在；如果已經建置過，請改用新的輸出資料夾，並同步調整後面的路徑。
-
-### C. 告訴 Watchdog 檔案放在哪裡
+### B. 告訴 Watchdog 檔案放在哪裡
 
 用記事本開啟 **`C:\WUF\Watchdog\launch.json`**，將內容替換成下方設定，再儲存。請確認檔名仍為 `launch.json`，沒有變成 `launch.json.txt`。
 
@@ -123,7 +108,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\WUF-Watchdog\win
 
 這裡使用 `/` 是為了方便填寫 JSON 路徑；Windows 可以讀取。`--models-dir` 後面填**模型資料夾**，`--llama` 後面填 **EXE 檔案本身**。先不要修改其他欄位。
 
-### D. 啟動並安裝瀏覽器連接功能
+### C. 啟動並安裝瀏覽器連接功能
 
 1. 在檔案總管開啟 `C:\WUF\Watchdog`，雙擊 **`app.exe`**。它會在背景啟動，不一定出現一般程式視窗。
 2. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，依第 3 節確認模型能運作。
@@ -137,97 +122,65 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\Watchdog\install
 
 ## 2B. macOS 安裝
 
-以下使用 macOS 的「終端機」：可在 Spotlight 搜尋「終端機」開啟。日常使用的成品是 **WUF Watchdog.app**。
+**預設使用 Apple Foundation Models，不必下載 Qwen／GGUF，不需要 llama.cpp、Python、Go 或 Xcode，也不用修改 `launch.json`。** 本節使用 macOS 27 內建的 `fm` 連接系統本機模型；Apple Foundation Models 框架與 `fm` 工具的系統版本需求不同，不是所有支援 Apple Intelligence 的舊系統都能照本節操作。[Apple 官方介紹](https://developer.apple.com/videos/play/wwdc2026/334/)
 
-### A. 準備工具與原始碼
+### A. 先確認 Apple Intelligence 可以使用
 
-1. 到 [Go 官方下載頁](https://go.dev/dl/)下載 macOS 的 `.pkg` 安裝程式。Apple M 系列選 **arm64**，Intel Mac 選 **amd64**；可從蘋果選單 →「關於這台 Mac」確認晶片。本專案要求 Go **1.24 以上版本**。安裝完成後重新開啟終端機。
-2. 執行下方指令安裝 Apple 命令列開發工具，依畫面完成；若系統表示已安裝，直接繼續。
-
-```sh
-/usr/bin/xcode-select --install
-```
-
-3. 在本 GitHub 頁按 **Code → Download ZIP**，解壓縮後，將直接包含 `README.md`、`watchdog-go` 的資料夾放到個人資料夾的 `LLM` 之下，命名為 **`WUF-Watchdog`**，也就是 `~/LLM/WUF-Watchdog`。
-4. 到 [llama.cpp 官方 Releases](https://github.com/ggml-org/llama.cpp/releases)，選擇有程式附件的版本：Apple M 系列下載名稱包含 **`bin-macos-arm64.tar.gz`** 的附件，Intel 下載 **`bin-macos-x64.tar.gz`**。不要選 Source code。解壓縮後保留完整資料夾，放到 `~/LLM/llama.cpp`。
-5. 找出裡面的 **`llama-server`**。用 Finder 搜尋也可以；選中檔案後按 **Option + Command + C** 複製完整路徑，後面設定會用到。它可能在 `bin` 子資料夾中。
-
-確認 Go 與 Swift 編譯工具能執行：
+1. 點蘋果選單 →「關於這台 Mac」，確認使用支援 Apple Intelligence 的晶片（例如 M1 或後續 M 系列），且系統為 **macOS 27 或更新版本**。Intel Mac 不適用這個 Apple 模型流程。
+2. 到「系統設定 → Apple Intelligence 與 Siri」，依系統提示完成設定，等待系統模型下載完畢。裝置語言、Siri 語言與所在地區也會影響可用性，詳見 [Apple 官方需求](https://support.apple.com/zh-tw/121115)。不需要另開 ChatGPT 帳號或填 API 金鑰。
+3. 按 Command + 空白鍵，搜尋「終端機」並開啟，貼上以下指令，按 Enter：
 
 ```sh
-/usr/local/go/bin/go version
-/usr/bin/swiftc --version
+/usr/bin/fm available --model system
 ```
 
-若 Go 安裝在其他位置，後續指令中的 `/usr/local/go/bin/go` 都要換成實際完整路徑。llama.cpp 也可依其[官方安裝說明](https://github.com/ggml-org/llama.cpp/blob/master/docs/install.md)，由已安裝的 Homebrew 執行 `brew install llama.cpp`；完成後用 `command -v llama-server` 查出路徑。
-
-### B. 建立原生應用程式
-
-在終端機執行以下指令，將程式建立在個人的「應用程式」資料夾：
+看到 **`System model available`** 表示本機 Apple 模型可用。若提示尚未接受命令列工具條款，執行：
 
 ```sh
-/usr/local/go/bin/go -C "$HOME/LLM/WUF-Watchdog/watchdog-go" run ./cmd/wuf-tool package-mac \
-  --repo "$HOME/LLM/WUF-Watchdog" \
-  --output "$HOME/Applications/WUF Watchdog.app" \
-  --go /usr/local/go/bin/go \
-  --swiftc /usr/bin/swiftc
+sudo /usr/bin/fm license
 ```
 
-整段一起貼上，行尾的 `\` 表示同一條指令繼續到下一行。首次建置可能需要下載 Go 工具鏈；結束後應出現 `.app` 的路徑。輸出位置不能已存在，失敗後再次建置請先將該次產物移到別處。
+閱讀並自行決定是否接受 Apple 條款。系統可能要求 Mac 管理員密碼，輸入時不會顯示字元，屬正常現象；完成後再執行一次可用性檢查。這是 Apple 工具的首次設定，不是編譯程式。
 
-### C. 設定模型與執行工具位置
+如果顯示找不到 `/usr/bin/fm`，先確認系統版本；如果模型不可用，先依 Apple Intelligence 畫面完成下載及設定。**Watchdog 不會替不支援的 Mac 安裝 Apple 系統模型。**
 
-1. 在 Finder 前往個人資料夾的 `Applications`，對 **WUF Watchdog.app** 按右鍵 →「顯示套件內容」。
-2. 開啟 `Contents` → `MacOS`，找到 **`launch.json`**，用純文字編輯器開啟。
-3. 保留原本欄位，在 `arguments` 陣列最後加入 `--models-dir` 與 `--llama`。完整範例如下。
+### B. 安裝並開啟 WUF Watchdog
 
-**範例中的 `你的帳號` 必須換成真正的 macOS 帳號資料夾名稱；`llama-server` 必須換成上一步找到的實際路徑。** JSON 內不能使用 `~` 或 `$HOME` 代替個人資料夾。
+> **目前 GitHub 尚未提供 macOS APP 下載附件。** 以下步驟適用於取得維護者提供的完整 `.app` 後；不能用 Source code ZIP 代替。開發者自行製作 APP 的方式另見[建置文件](docs/BUILD.md#macos建立原生-app)。
 
-```json
-{
-  "core": "watchdog",
-  "tray": "tray",
-  "base_url": "http://127.0.0.1:8080",
-  "arguments": [
-    "--dashboard", "../Resources/dashboard.html",
-    "--laya-root", "../Resources/laya",
-    "--models-dir", "/Users/你的帳號/LLM/Models",
-    "--llama", "/Users/你的帳號/LLM/llama.cpp/bin/llama-server"
-  ],
-  "tray_arguments": [
-    "--config", "launch.json",
-    "--swift", "../Resources/WUFMenuBar"
-  ]
-}
-```
+1. 從 [Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases)取得適合自己 Mac 的已建置套件。若頁面沒有 APP 附件，表示公開安裝包尚未提供。
+2. 將套件解壓縮，把完整的 **WUF Watchdog.app** 放入個人「應用程式」資料夾。Finder 按 Shift + Command + G，輸入 `~/Applications` 即可前往；若資料夾不存在，先在個人資料夾建立 `Applications`。
+3. 雙擊 **WUF Watchdog.app**。它使用選單列圖示，不會出現一般主視窗。
+4. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，在控制台選擇 **Apple Foundation Models**；若已選定且休眠，按「啟動引擎」。新手先維持這個模型即可。程式會記住上次選擇，曾用其他模型的人可手動切回 Apple。
+5. 狀態變成「準備就緒」後，繼續第 4 節的瀏覽器設定，測試實際翻譯。
 
-請儲存為純文字 `launch.json`，不要使用富文字格式。由於設定放在 `.app` 裡，更新應用程式前記得另外備份。
+若 macOS 阻擋程式，確認來源後查看「系統設定 → 隱私權與安全性」顯示的提示。程式是否已完成 Developer ID 簽署及公證，應以該發布版本的說明為準。
 
-### D. 啟動並安裝瀏覽器連接功能
+### C. 讓瀏覽器可以喚醒 Watchdog（選用）
 
-1. 在 Finder 雙擊 **WUF Watchdog.app**，再用瀏覽器開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**。應用程式使用選單列圖示，不會有一般主視窗。
-2. 若 macOS 阻擋你確認來源的程式，依「系統設定 → 隱私權與安全性」顯示的提示處理；不需要關閉整台電腦的安全防護。llama.cpp 的工具也可能需要個別允許執行。
-3. 要讓 WUF Translate 能喚醒 Watchdog，在終端機執行：
+手動開啟 APP 後即可使用 API 翻譯。要讓 WUF Translate 能從瀏覽器喚醒尚未啟動的 Watchdog，才需要註冊連接功能。在終端機執行：
 
 ```sh
 "$HOME/Applications/WUF Watchdog.app/Contents/MacOS/wuf-tool" install-mac \
   --app "$HOME/Applications/WUF Watchdog.app" --action install
 ```
 
-看到 **`Completed install`** 表示已為目前使用者的 Chrome／Edge 註冊連接功能。完成後重新開啟瀏覽器。這一步不會安裝擴充功能或開啟登入自動啟動。
+整段一起貼上，行尾的 `\` 表示同一條指令繼續到下一行。看到 **`Completed install`** 後，關閉並重新開啟 Chrome／Edge。若 APP 放在其他位置，兩處路徑都要改成實際位置。
+
+這一步只為目前使用者註冊瀏覽器連接，不會安裝 WUF Translate，也不會開啟登入自動啟動。
 
 ## 3. 第一次啟動：確認安裝成功
 
 在瀏覽器網址列輸入 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**。`127.0.0.1` 的意思是「這台電腦」，只有程式已啟動時才會有控制台。
 
 1. **看到 WUF Watchdog 控制台**：代表管理服務已啟動。
-2. **在模型清單看到 `Qwen3-0.6B-Q8_0`**：代表模型資料夾設定正確，已找到模型檔。
+2. **確認模型清單**：macOS 應看到 **Apple Foundation Models**；Windows 依前述範例應看到 `Qwen3-0.6B-Q8_0`。前者代表偵測到 Apple 後端，仍需通過模型可用性檢查；後者代表找到 GGUF 模型檔。
 3. **按該模型**：選取會直接開始載入；若已選定且處於休眠，按「啟動引擎」。首次載入請稍候。
 4. **狀態變成「準備就緒」**：代表模型執行工具已啟動並通過就緒檢查。接著用下一節的「測試模型運作」確認能產生文字。
 
-「看得到控制台」和「模型可以翻譯」是兩個階段。清單空白時先處理路徑，不必重裝瀏覽器擴充功能。
+「看得到控制台」和「模型可以翻譯」是兩個階段。macOS 看不到 Apple 模型時，先確認系統版本及 `/usr/bin/fm`；Windows 清單空白時先處理模型路徑，不必重裝瀏覽器擴充功能。
 
-預設閒置約 **3 分鐘**會卸載模型，狀態變成「休眠待命」。這是正常省資源行為；Watchdog 還在，下次請求會再載入模型。若按「退出 WUF Watchdog」，才會關閉整個服務，之後需重新啟動應用程式或透過已註冊的擴充功能喚醒。
+預設閒置約 **3 分鐘**會卸載模型，狀態變成「休眠待命」。這是正常省資源行為；Watchdog 還在，下次請求會再載入模型。Apple 模型休眠時會停止本機服務進程，系統模型記憶體則由 macOS 管理，不保證全部立即釋放。若按「退出 WUF Watchdog」，才會關閉整個服務，之後需重新啟動應用程式或透過已註冊的擴充功能喚醒。
 
 ## 4. 連接瀏覽器，開始翻譯
 
@@ -282,7 +235,7 @@ macOS 在終端機執行：
 
 新增後重新整理控制台；若仍沒有出現，退出並重新啟動 Watchdog。模型會佔用記憶體，請先保留可用的小模型，再嘗試其他模型。
 
-更新 Watchdog 前，先備份 **`launch.json`**，並退出服務。下載新原始碼後依相同流程建置到新的位置，再將模型與執行工具路徑填回新設定。若應用程式路徑改變，需先用舊位置執行下方解除註冊，再用新位置重新安裝瀏覽器連接功能及登入啟動設定。模型不必跟著重新下載。
+更新 Watchdog 前，先備份 **`launch.json`**，並退出服務。取得新版已建置套件後更新應用程式。只有使用自訂模型或執行工具路徑的人，才需要將原設定填回新套件；開發者自行建置請依獨立建置文件操作。若應用程式路徑改變，需先用舊位置執行下方解除註冊，再用新位置重新安裝瀏覽器連接功能及登入啟動設定。模型不必跟著重新下載。
 
 ### 移除
 
@@ -305,15 +258,14 @@ macOS 執行：
 
 | 情況 | 處理方式 |
 | --- | --- |
-| Releases 沒有 Watchdog 安裝附件 | 目前尚未發布安裝包，依本頁從原始碼建置，或請人協助；Source code ZIP 不能直接執行 |
-| 找不到 Go 或 `go.exe` | 完成 Go 安裝、重新開啟終端機，確認使用的是實際完整路徑 |
-| 建置顯示 `Output already exists`／`file exists` | 指定尚未存在的新輸出位置；失敗留下的半成品也會佔住原位置 |
+| Releases 沒有 Watchdog 安裝附件 | 目前尚未發布安裝包；需等待維護者提供，或由開發者依獨立建置文件製作。Source code ZIP 不能直接執行 |
 | Windows 說缺少 DLL | 將 llama.cpp 整包解壓縮，保留 EXE 旁的 DLL；不要只複製單一 EXE |
-| macOS 找不到 Swift | 完成 `xcode-select --install`，再確認 `swiftc --version` 能執行 |
+| macOS 找不到 `/usr/bin/fm` | 本頁預設的 Apple 流程需要 macOS 27；有 Apple Intelligence 不代表一定有這個工具 |
+| Apple 模型不可用 | 執行 `/usr/bin/fm available --model system`，依提示檢查 Apple Intelligence 下載狀態、語言／地區及工具條款 |
 | macOS 阻擋應用程式或 llama-server | 確認下載來源，查看「隱私權與安全性」的允許開啟提示 |
 | 開不了 `127.0.0.1:8080` | 先開啟 `app.exe` 或 `.app`；檢查 `launch.json` 是否為合法純文字 JSON、路徑是否正確 |
 | 顯示連接埠已被使用 | 可能已有 Watchdog 或其他服務使用 8080；先辨認並關閉衝突的服務，再重試。不要同時啟動另一個使用 8080 的 llama-server |
-| 模型清單空白 | 確認 `--models-dir` 指向正確資料夾、檔案下載完成、格式為 GGUF，且沒有藏在多層子資料夾；重新啟動後再確認 |
+| 模型清單空白 | macOS Apple 流程先確認 `/usr/bin/fm` 可用；Windows／自訂 GGUF 則確認 `--models-dir`、檔案完整性及資料夾層級，重新啟動後再確認 |
 | 模型出現但載入失敗 | 確認 `--llama` 指向可執行檔本身；查看 `model.log`。可能是工具版本、模型格式、記憶體不足或硬體不支援目前啟動參數 |
 | 載入很慢、字幕跟不上 | 先使用小模型；Windows CPU 版可能較慢。GPU 版本需要匹配硬體、驅動及執行庫，請依 llama.cpp 官方說明安裝，再更新 `--llama` 路徑 |
 | 決策區顯示未找到 Laya／未安裝環境 | 第一次安裝可以略過；WUF Translate 選「不使用決策模型」即可測試基本翻譯 |
@@ -339,17 +291,17 @@ Laya 負責輔助判斷，與產生譯文的模型分開執行。它需要另外
 
 準備好後，在 `launch.json` 的 `arguments` 加入 `--laya-python` 與 `--laya-model`，分別填入**該虛擬環境 Python 的完整路徑**及**完整模型資料夾路徑**。保留原有 `--laya-root`。重新啟動後，在控制台載入決策模型，確認就緒，再於 WUF Translate 選擇「本機 Laya」，端點為 `http://127.0.0.1:8080/v1/systemone`。
 
-macOS 的 MLX、oMLX、Apple 相關後端，以及 Windows GPU 加速，均需要另外準備對應工具與相容硬體。首次安裝請先完成本指南的 GGUF 流程。
+macOS 的 MLX、oMLX、自訂 Apple API 後端，以及 Windows GPU 加速，均需要另外準備對應工具與相容硬體。首次安裝時，macOS 請先完成 Apple 預設流程；Windows 請先完成 GGUF 流程。
 
 ### 本機連線與資料
 
 Watchdog 預設只接受這台電腦的連線。提供給其他應用程式的 API 網址是 `http://127.0.0.1:8080/v1`；8081、8082 為內部模型服務使用，不需填入擴充功能。不要將這些連接埠轉發到網際網路。
 
-依本頁 GGUF 流程執行時，推論在本機的 llama.cpp 處理；下載原始碼、工具、模型與首次建置仍需要網路。若擴充功能另選 Google 翻譯或線上服務，文字將依該服務設定傳送。
+macOS 依本頁選用 Apple 的 `system` 模型時，推論由本機系統模型處理；Windows GGUF 流程由本機 llama.cpp 處理。下載應用程式、系統模型或 GGUF 模型仍需要網路。若擴充功能另選 Google 翻譯或線上服務，文字將依該服務設定傳送。
 
 ## 給開發者
 
-日常使用者可以跳過這一節。
+日常使用者可以跳過這一節。EXE／APP 的製作方式已移至[開發者建置文件](docs/BUILD.md)，不應要求一般使用者安裝編譯工具。
 
 | 目錄 | 用途 |
 | --- | --- |
