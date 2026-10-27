@@ -34,6 +34,7 @@ type Manager struct {
 	cfg                        Config
 	mu                         sync.Mutex
 	gate                       chan struct{}
+	changed                    chan struct{}
 	ctx                        context.Context
 	cancel                     context.CancelFunc
 	models                     []Model
@@ -64,7 +65,7 @@ func NewManager(c Config) (*Manager, error) {
 
 func managerForModels(c Config, models []Model, last string) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{cfg: c, models: models, gate: make(chan struct{}, 1), ctx: ctx, cancel: cancel,
+	m := &Manager{cfg: c, models: models, gate: make(chan struct{}, 1), changed: make(chan struct{}), ctx: ctx, cancel: cancel,
 		autoSleep: true, lastActive: time.Now()}
 	if model, ok := FindModel(models, last); last != "" && ok {
 		m.current = model
@@ -129,6 +130,49 @@ func (m *Manager) acquire(ctx context.Context, wait bool) error {
 
 func (m *Manager) release() { <-m.gate }
 
+// The gate protects lifecycle changes and admission, not response streaming.
+// changed is closed under mu when a response releases its model lease.
+func (m *Manager) waitForChange(ctx context.Context, changed <-chan struct{}) error {
+	select {
+	case <-m.ctx.Done():
+		return ErrStopped
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-changed:
+		return nil
+	}
+}
+
+func (m *Manager) acquireIdle(ctx context.Context, wait bool) error {
+	ctx, cancel := context.WithTimeout(ctx, m.cfg.QueueTimeout)
+	defer cancel()
+	for {
+		if err := m.acquire(ctx, wait); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		active, changed := m.active, m.changed
+		m.mu.Unlock()
+		if active == 0 {
+			return nil
+		}
+		m.release()
+		if !wait {
+			return ErrBusy
+		}
+		if err := m.waitForChange(ctx, changed); err != nil {
+			return err
+		}
+	}
+}
+
+func modelConcurrency(model Model) int {
+	if model.Type == "apple" || model.Type == "apple-api" {
+		return 2
+	}
+	return 1
+}
+
 func (m *Manager) stopModel() error {
 	m.mu.Lock()
 	proc := m.proc
@@ -164,6 +208,10 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 			m.mu.Unlock()
 			return nil
 		}
+	}
+	if m.active > 0 {
+		m.mu.Unlock()
+		return errors.New("backend stopped during active requests")
 	}
 	m.starting = true
 	m.mu.Unlock()
@@ -237,7 +285,7 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 }
 
 func (m *Manager) Wake(ctx context.Context) error {
-	if err := m.acquire(ctx, true); err != nil {
+	if err := m.acquireIdle(ctx, true); err != nil {
 		return err
 	}
 	defer m.release()
@@ -245,7 +293,7 @@ func (m *Manager) Wake(ctx context.Context) error {
 }
 
 func (m *Manager) Sleep(ctx context.Context) error {
-	if err := m.acquire(ctx, false); err != nil {
+	if err := m.acquireIdle(ctx, false); err != nil {
 		return err
 	}
 	defer m.release()
@@ -275,7 +323,7 @@ func (m *Manager) selectModel(alias string) error {
 }
 
 func (m *Manager) Switch(ctx context.Context, alias string) error {
-	if err := m.acquire(ctx, false); err != nil {
+	if err := m.acquireIdle(ctx, false); err != nil {
 		return err
 	}
 	defer m.release()
@@ -285,32 +333,68 @@ func (m *Manager) Switch(ctx context.Context, alias string) error {
 	return m.wakeLocked(ctx)
 }
 
-// WithModel holds the gate until the entire response (including SSE) is sent.
+// WithModel leases a model for the entire response, including SSE. Apple
+// requests may overlap; model switches and shutdown still respect every lease.
 // The callback must propagate ctx to its upstream HTTP request.
 func (m *Manager) WithModel(ctx context.Context, alias string, send func(context.Context, Model) error) error {
-	if err := m.acquire(ctx, true); err != nil {
+	queue, cancelQueue := context.WithTimeout(ctx, m.cfg.QueueTimeout)
+	defer cancelQueue()
+	var model Model
+	for {
+		if err := m.acquire(queue, true); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		model = m.current
+		same := alias == "" || alias == "default"
+		if !same {
+			target, ok := FindModel(m.models, alias)
+			if !ok {
+				m.mu.Unlock()
+				m.release()
+				return fmt.Errorf("%w: %s", ErrUnknownModel, alias)
+			}
+			same = target.ID == model.ID
+		}
+		active, changed := m.active, m.changed
+		m.mu.Unlock()
+		if active == 0 || (same && active < modelConcurrency(model)) {
+			break
+		}
+		m.release()
+		if err := m.waitForChange(queue, changed); err != nil {
+			return err
+		}
+	}
+	if err := m.selectModel(alias); err != nil {
+		m.release()
 		return err
 	}
-	defer m.release()
+	if err := m.wakeLocked(queue); err != nil {
+		m.release()
+		return err
+	}
+	if err := queue.Err(); err != nil {
+		m.release()
+		return err
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(m.ctx, cancel)
 	defer stop()
 	defer cancel()
-	if err := m.selectModel(alias); err != nil {
-		return err
-	}
-	if err := m.wakeLocked(ctx); err != nil {
-		return err
-	}
 	m.mu.Lock()
 	m.active++
 	m.requests++
-	model := m.current
+	model = m.current
 	m.mu.Unlock()
+	m.release()
+	cancelQueue()
 	defer func() {
 		m.mu.Lock()
 		m.active--
 		m.lastActive = time.Now()
+		close(m.changed)
+		m.changed = make(chan struct{})
 		m.mu.Unlock()
 	}()
 	return send(ctx, model)
@@ -343,7 +427,7 @@ func (m *Manager) Refresh() error {
 
 // CheckIdle is driven by the server's owned ticker; no hidden goroutine.
 func (m *Manager) CheckIdle() error {
-	if err := m.acquire(context.Background(), false); err != nil {
+	if err := m.acquireIdle(context.Background(), false); err != nil {
 		if errors.Is(err, ErrBusy) || errors.Is(err, ErrStopped) {
 			return nil
 		}
@@ -385,13 +469,28 @@ func (m *Manager) Snapshot() Snapshot {
 }
 
 func (m *Manager) Stop() error {
-	m.cancel() // Active upstream contexts and queued requests are cancelled too.
+	m.cancel() // Cancel both active upstream contexts and every queued request.
 	err := m.stopModel()
-	select {
-	case m.gate <- struct{}{}:
-		defer m.release()
-		return errors.Join(err, m.stopModel())
-	case <-time.After(5 * time.Second):
-		return errors.Join(err, errors.New("active startup/request did not stop after cancellation"))
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case m.gate <- struct{}{}:
+			m.mu.Lock()
+			active, changed := m.active, m.changed
+			m.mu.Unlock()
+			if active == 0 {
+				defer m.release()
+				return errors.Join(err, m.stopModel())
+			}
+			m.release()
+			select {
+			case <-changed:
+			case <-timer.C:
+				return errors.Join(err, errors.New("active startup/request did not stop after cancellation"))
+			}
+		case <-timer.C:
+			return errors.Join(err, errors.New("active startup/request did not stop after cancellation"))
+		}
 	}
 }

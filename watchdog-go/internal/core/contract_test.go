@@ -50,6 +50,7 @@ func TestPortableHTTPContract(t *testing.T) {
 	for _, testCase := range fixture.Cases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			c := testConfig(t)
+			c.Binaries.FM, c.Binaries.AppleAPI = "", ""
 			c.ModelsDir = t.TempDir()
 			path := writeFile(t, filepath.Join(c.ModelsDir, "fixture-translation.gguf"))
 			m, err := NewManager(c)

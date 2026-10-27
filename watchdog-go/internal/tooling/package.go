@@ -19,6 +19,8 @@ import (
 	"wuf-translate/watchdog-go/internal/launch"
 )
 
+const Version = "0.2.0"
+
 const LoginLabel = "local.wuf.translate.watchdog"
 
 func copyFile(source, target string) error {
@@ -127,7 +129,7 @@ func PopulateMac(repo, app string) error {
 	if err := writeNew(filepath.Join(macos, "launch.json"), data); err != nil {
 		return err
 	}
-	info, err := Plist(map[string]any{"CFBundleName": "WUF Watchdog", "CFBundleDisplayName": "WUF Watchdog", "CFBundleIdentifier": LoginLabel, "CFBundleExecutable": "app", "CFBundleIconFile": "guardian.icns", "CFBundlePackageType": "APPL", "CFBundleVersion": "1", "LSUIElement": true, "NSHighResolutionCapable": true})
+	info, err := Plist(map[string]any{"CFBundleName": "WUF Watchdog", "CFBundleDisplayName": "WUF Watchdog", "CFBundleIdentifier": LoginLabel, "CFBundleExecutable": "app", "CFBundleIconFile": "guardian.icns", "CFBundlePackageType": "APPL", "CFBundleVersion": Version, "CFBundleShortVersionString": Version, "LSUIElement": true, "NSHighResolutionCapable": true})
 	if err != nil {
 		return err
 	}
@@ -178,7 +180,14 @@ func BuildMac(repo, app, goExe, swiftc string, layoutOnly bool) error {
 	if err != nil {
 		return err
 	}
-	if err := copyFile(filepath.Join(strings.TrimSpace(string(root)), "LICENSE"), filepath.Join(resources, "GO-LICENSE.txt")); err != nil {
+	goLicense := filepath.Join(strings.TrimSpace(string(root)), "LICENSE")
+	if _, statErr := os.Stat(goLicense); statErr != nil {
+		parentLicense := filepath.Join(filepath.Dir(strings.TrimSpace(string(root))), "LICENSE")
+		if _, pErr := os.Stat(parentLicense); pErr == nil {
+			goLicense = parentLicense
+		}
+	}
+	if err := copyFile(goLicense, filepath.Join(resources, "GO-LICENSE.txt")); err != nil {
 		return err
 	}
 	if err := writeNew(filepath.Join(resources, "NOTICE.txt"), []byte("First-party code: Apache-2.0. Go runtime: BSD-3-Clause. Models and inference runtimes supplied separately. Python is used only by the isolated Laya backend.\n")); err != nil {

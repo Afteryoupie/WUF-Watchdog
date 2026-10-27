@@ -255,6 +255,17 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         return shapes
     }()
 
+    private static func addLoop(_ loop: [[Double]], to context: CGContext) {
+        guard loop.count >= 3, let first = loop.first, let last = loop.last else { return }
+        context.move(to: CGPoint(x: (last[0] + first[0]) / 2, y: (last[1] + first[1]) / 2))
+        for (i, point) in loop.enumerated() {
+            let next = loop[(i + 1) % loop.count]
+            context.addQuadCurve(to: CGPoint(x: (point[0] + next[0]) / 2, y: (point[1] + next[1]) / 2),
+                                 control: CGPoint(x: point[0], y: point[1]))
+        }
+        context.closePath()
+    }
+
     private func guardianIcon(status: String) -> NSImage {
         let awake = status == "running" || status == "starting"
         let speaking = status == "running" && (activeRequests > 0 || (decisionSnapshot["active_requests"] as? Int ?? 0) > 0)
@@ -270,18 +281,33 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
             defer { c.restoreGState() }
             c.translateBy(x: 0, y: 22)
             c.scaleBy(x: 22.0 / 64, y: -22.0 / 64)
-            c.setFillColor(NSColor.black.cgColor)
-            for loop in contours where loop.count >= 3 && loop.allSatisfy({ $0.count == 2 }) {
-                guard let first = loop.first, let last = loop.last else { continue }
-                c.move(to: CGPoint(x: (last[0] + first[0]) / 2, y: (last[1] + first[1]) / 2))
-                for (i, point) in loop.enumerated() {
-                    let next = loop[(i + 1) % loop.count]
-                    c.addQuadCurve(to: CGPoint(x: (point[0] + next[0]) / 2, y: (point[1] + next[1]) / 2),
-                                   control: CGPoint(x: point[0], y: point[1]))
-                }
-                c.closePath()
+
+            // 1. Loop 0: 白色外緣輪廓，黑色皮毛留空不填色以呈現透明
+            if contours.count > 0 {
+                Self.addLoop(contours[0], to: c)
+                c.setStrokeColor(NSColor.white.cgColor)
+                c.setLineWidth(2.2)
+                c.setLineJoin(.round)
+                c.strokePath()
             }
-            c.drawPath(using: .eoFill)
+
+            // 2. Loop 1 (白色面部與胸口) + Loop 3 (黑色鼻子以 eoFill 挖空為透明)
+            if contours.count > 1 {
+                Self.addLoop(contours[1], to: c)
+                if contours.count > 3 {
+                    Self.addLoop(contours[3], to: c)
+                }
+                c.setFillColor(NSColor.white.cgColor)
+                c.drawPath(using: .eoFill)
+            }
+
+            // 3. Loop 2: 白色眼睛
+            if contours.count > 2 {
+                Self.addLoop(contours[2], to: c)
+                c.setFillColor(NSColor.white.cgColor)
+                c.drawPath(using: .fill)
+            }
+
             return true
         }
         image.isTemplate = true

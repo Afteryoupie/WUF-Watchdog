@@ -57,7 +57,7 @@ func TestMacPackagePathsAndNoManagementPython(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := readPlist(data)
-	if err != nil || info["CFBundleExecutable"] != "app" || info["LSUIElement"] != true || info["CFBundleName"] != "WUF Watchdog" || info["CFBundleDisplayName"] != "WUF Watchdog" {
+	if err != nil || info["CFBundleExecutable"] != "app" || info["LSUIElement"] != true || info["CFBundleName"] != "WUF Watchdog" || info["CFBundleDisplayName"] != "WUF Watchdog" || info["CFBundleVersion"] != Version || info["CFBundleShortVersionString"] != Version {
 		t.Fatalf("plist %v %v", info, err)
 	}
 	entries, err := os.ReadDir(filepath.Join(app, "Contents", "Resources", "laya", "watchdog"))

@@ -7,3 +7,5 @@ data/
 *.log
 .env
 .env.*
+.DS_Store
+wuf-tool
