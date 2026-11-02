@@ -112,6 +112,14 @@ func Run(ctx context.Context, configPath, action, testRegistryKey string, input 
 			return err
 		}
 		state := "未啟用"
+		if testRegistryKey == "" {
+			actual, err := Autostart(ctx, configPath, nil)
+			if err != nil {
+				return err
+			}
+			found = actual.Enabled
+			value = command
+		}
 		if found {
 			state = "已啟用"
 			if value != command && value != legacyNativeCommand(configPath) {
@@ -161,6 +169,18 @@ func Run(ctx context.Context, configPath, action, testRegistryKey string, input 
 		}
 		return json.NewEncoder(output).Encode(health)
 	case "enable-autostart", "disable-autostart":
+		if testRegistryKey == "" {
+			enabled := action == "enable-autostart"
+			state, err := Autostart(ctx, configPath, &enabled)
+			if err != nil {
+				return err
+			}
+			if !state.Supported {
+				return errors.New("autostart control is unavailable on this platform")
+			}
+			fmt.Fprintf(output, "WUF Watchdog 開機自動啟動：%t\n", state.Enabled)
+			return nil
+		}
 		if action == "enable-autostart" {
 			info, err := os.Stat(filepath.Join(filepath.Dir(configPath), "app.exe"))
 			if err != nil {

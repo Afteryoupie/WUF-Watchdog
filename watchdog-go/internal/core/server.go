@@ -17,9 +17,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"wuf-translate/watchdog-go/internal/control"
 )
 
 type API struct {
+	Autostart  func(context.Context, *bool) (control.AutostartStatus, error)
 	manager    *Manager
 	decision   *Decision
 	dashboard  string
@@ -109,6 +112,10 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(ctx)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	path, method := r.URL.Path, r.Method
+	if path == "/api/autostart" {
+		a.serveAutostart(w, r)
+		return
+	}
 	if method == "OPTIONS" {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

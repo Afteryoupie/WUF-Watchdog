@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"wuf-translate/watchdog-go/internal/control"
 	"wuf-translate/watchdog-go/internal/core"
 )
 
@@ -93,6 +94,9 @@ func run() error {
 		log.Printf("dashboard resource is not installed: %s", *dashboard)
 	}
 	api := core.NewAPI(manager, decision, string(template), address.Port)
+	api.Autostart = func(ctx context.Context, enabled *bool) (control.AutostartStatus, error) {
+		return control.Autostart(ctx, filepath.Join(filepath.Dir(executable), "launch.json"), enabled)
+	}
 	defer api.Close()
 	server := core.HTTPServer(api)
 	defer server.Close()

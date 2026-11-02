@@ -214,7 +214,9 @@ sudo /usr/bin/fm license
 
 ### 登入電腦時自動啟動（選用）
 
-一般安裝不會自動開啟這項功能。Windows 在 PowerShell 執行：
+一般安裝不會自動開啟這項功能。Windows 可在本機控制台右側卡片的第三項 **03 / Startup → 開機自動啟動** 設定；開關會讀回系統狀態，變更不會關閉目前正在執行的服務。已有 `WUF Watchdog Login` 登入排程時會控制該排程並保留延遲與重試設定；否則使用目前使用者的原生登入項目。
+
+也可在 PowerShell 執行（與控制台共用相同設定）：
 
 ```powershell
 & 'C:\WUF\Watchdog\wuf-tool.exe' control --action enable-autostart
