@@ -559,8 +559,8 @@ dialog .actions {
 <div class="policy"><span class="micro">02 / Energy</span><button id="btn-toggle-auto" class="switch" role="switch" aria-checked="true"><span>自動休眠</span><span class="switch-track" aria-hidden="true"></span></button>
 <p>閒置時卸載模型，釋放運算資源。下次請求時自動喚醒。</p></div>
 <div id="startup-policy" class="policy"><span class="micro">03 / Startup</span><button id="btn-autostart" class="switch" role="switch" aria-checked="false" aria-describedby="autostart-description autostart-status" disabled><span>開機自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
-<p id="autostart-description">登入 Windows 後自動啟動 WUF Watchdog，隨時準備接收請求。</p><p id="autostart-status" role="status" aria-live="polite">正在讀取啟動設定…</p></div>
-<div class="policy"><span id="system-micro" class="micro">03 / System</span><button id="btn-toggle-autostart" class="switch" role="switch" aria-checked="false" hidden><span>登入時自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
+<p id="autostart-description">登入電腦後自動啟動 WUF Watchdog，隨時準備接收請求。</p><p id="autostart-status" role="status" aria-live="polite">正在讀取啟動設定…</p></div>
+<div class="policy"><span id="system-micro" class="micro">04 / System</span>
 <p id="setup-native-status" class="sub" style="margin-top:10px">瀏覽器喚醒連接：檢查中…</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="btn-setup-native" class="btn" type="button">註冊瀏覽器連接</button><button id="btn-setup-uninstall" class="btn quiet" type="button">解除註冊</button></div>
 <div id="setup-fm-box" hidden style="margin-top:12px"><p id="setup-fm-status" class="sub"></p><button id="btn-copy-fm-license" class="btn quiet" type="button" hidden style="margin-top:6px">複製授權指令 (sudo /usr/bin/fm license)</button></div>
@@ -604,13 +604,9 @@ $('btn-decision-sleep').onclick=()=>action('decision/sleep','決策模型休眠'
 $('btn-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('endpoint-text').textContent);toast('API 網址已複製')}catch{toast('無法自動複製，請選取上方 API 網址手動複製。',true)}};
 function renderSetup(st){
   if(!st)return;setupData=st;
-  const isWin=st.platform==='windows';
-  if($('startup-policy'))$('startup-policy').hidden=!isWin;
-  if($('system-micro'))$('system-micro').textContent=isWin?'04 / System':'03 / System';
-  $('btn-toggle-autostart').hidden=isWin;
-  const autoUnsupported=st.autostart==='unsupported'||st.autostart==='foreign';
-  $('btn-toggle-autostart').disabled=busy||!connected||stopped||autoUnsupported;
-  $('btn-toggle-autostart').setAttribute('aria-checked',String(st.autostart==='enabled'));
+  if(st.platform!=='windows'){
+    renderAutostart({supported:st.autostart==='enabled'||st.autostart==='disabled',enabled:st.autostart==='enabled'});
+  }
   const nativeLabels={installed:'瀏覽器喚醒連接：已註冊（Chrome / Edge）',not_installed:'瀏覽器喚醒連接：尚未註冊',foreign:'瀏覽器喚醒連接：偵測到其他位置的註冊（已保留）',unsupported:'瀏覽器喚醒連接：目前為開發模式執行'};
   $('setup-native-status').textContent=nativeLabels[st.native_host]||'瀏覽器喚醒連接：未知';
   $('btn-setup-native').disabled=busy||!connected||stopped||st.native_host==='installed'||st.native_host==='unsupported';
@@ -625,7 +621,6 @@ function renderSetup(st){
 }
 async function fetchSetup(){if(stopped)return;try{const res=await fetch('/api/setup',{signal:AbortSignal.timeout(5000)});if(res.ok)renderSetup(await res.json())}catch{}}
 async function setupAction(act,label){if(busy||!connected||stopped)return;busy=true;setButtons();if(setupData)renderSetup(setupData);toast(label+'中…');try{const res=await fetch('/api/setup?action='+encodeURIComponent(act),{method:'POST',signal:AbortSignal.timeout(10000)});const data=await res.json();if(data.setup)renderSetup(data.setup);if(!res.ok||data.status!=='ok')throw Error(data.message||'HTTP '+res.status);toast(label+'完成')}catch(e){toast(label+'失敗：'+e.message,true)}finally{busy=false;setButtons();if(setupData)renderSetup(setupData)}}
-$('btn-toggle-autostart').onclick=()=>{const on=setupData?.autostart==='enabled';setupAction(on?'disable-autostart':'enable-autostart',on?'取消登入自動啟動':'啟用登入自動啟動')};
 $('btn-setup-native').onclick=()=>setupAction('install-native-host','註冊瀏覽器喚醒連接');
 $('btn-setup-uninstall').onclick=()=>setupAction('uninstall','解除瀏覽器與登入啟動註冊');
 $('btn-copy-fm-license').onclick=async()=>{try{await navigator.clipboard.writeText('sudo /usr/bin/fm license');toast('已複製指令，請貼到「終端機」執行')}catch{toast('請手動複製：sudo /usr/bin/fm license',true)}};
@@ -639,10 +634,26 @@ async function syncAutostart(enabled){
  autostartBusy=true;setButtons();$('btn-autostart').setAttribute('aria-busy','true');
  $('autostart-status').textContent=enabled===undefined?'正在讀取啟動設定…':'正在儲存啟動設定…';
  try{
+  if(setupData?.platform&&setupData.platform!=='windows'){
+   if(enabled!==undefined){
+    const act=enabled?'enable-autostart':'disable-autostart';
+    const res=await fetch('/api/setup?action='+encodeURIComponent(act),{method:'POST',signal:AbortSignal.timeout(10000)});
+    const data=await res.json();
+    if(!res.ok||data.status!=='ok')throw Error(data.message||('HTTP '+res.status));
+    if(data.setup)renderSetup(data.setup);
+   }else{
+    await fetchSetup();
+   }
+   return;
+  }
   const options={signal:AbortSignal.timeout(15000)};
   if(enabled!==undefined)Object.assign(options,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
   const res=await fetch('/api/autostart',options),data=await res.json();
   if(!res.ok)throw Error(data.error?.message||('HTTP '+res.status));
+  if(!data.supported&&setupData?.platform&&setupData.platform!=='windows'){
+   renderAutostart({supported:setupData.autostart==='enabled'||setupData.autostart==='disabled',enabled:setupData.autostart==='enabled'});
+   return;
+  }
   renderAutostart(data);
  }catch(e){
   autostartState=null;
