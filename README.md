@@ -111,8 +111,8 @@ C:\WUF\
 ### C. 啟動並連接瀏覽器
 
 1. 在檔案總管開啟 `C:\WUF\Watchdog`，雙擊 **`app.exe`**。它會在背景啟動並自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host）。
-2. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，依第 3 節確認模型能運作。
-3. 若曾在其他資料夾安裝過舊版、導致自動註冊略過，可在控制台右側「03 / System」查看狀態，或手動執行：
+2. 右鍵點擊右下角系統匣圖示 → **「開啟網頁控制台」**（或用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**），依第 3 節確認模型能運作。
+3. 若曾在其他資料夾安裝過舊版、導致自動註冊略過，可在控制台右側「04 / System」查看狀態，或手動執行：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\Watchdog\install-wuf.ps1' -Action Install
@@ -151,14 +151,14 @@ sudo /usr/bin/fm license
 1. 從 [Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.1-macos-arm64.zip`**（或最新版的 `macos-arm64` 套件）。
 2. 將套件解壓縮，把完整的 **WUF Watchdog.app** 放入個人「應用程式」資料夾。Finder 按 Shift + Command + G，輸入 `~/Applications` 即可前往；若資料夾不存在，先在個人資料夾建立 `Applications`。
 3. 雙擊 **WUF Watchdog.app**。它使用選單列圖示，不會出現一般主視窗。
-4. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，在控制台選擇 **Apple Foundation Models**；若已選定且休眠，按「啟動引擎」。新手先維持這個模型即可。程式會記住上次選擇，曾用其他模型的人可手動切回 Apple。
+4. 點選上方選單列圖示 → **「開啟控制台」**（或用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**），在控制台選擇 **Apple Foundation Models**；若已選定且休眠，按「啟動引擎」。新手先維持這個模型即可。程式會記住上次選擇，曾用其他模型的人可手動切回 Apple。
 5. 狀態變成「準備就緒」後，繼續第 4 節的瀏覽器設定，測試實際翻譯。
 
 若 macOS 阻擋程式，確認來源後查看「系統設定 → 隱私權與安全性」顯示的提示。程式是否已完成 Developer ID 簽署及公證，應以該發布版本的說明為準。
 
 ### C. 瀏覽器喚醒設定（已自動處理）
 
-雙擊啟動 **WUF Watchdog.app** 時，程式會自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並可在控制台右側「03 / System」查看 Apple 模型與連接狀態。
+雙擊啟動 **WUF Watchdog.app** 時，程式會自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並可在控制台右側「04 / System」查看 Apple 模型與連接狀態。
 
 若原本已有其他位置的註冊、或需要手動重新註冊，才需在終端機執行：
 
