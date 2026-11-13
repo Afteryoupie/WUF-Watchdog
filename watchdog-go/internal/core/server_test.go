@@ -342,3 +342,88 @@ func TestHTTPReverseProxyRetriesStaleKeepAliveOnPost(t *testing.T) {
 		t.Fatalf("expected upstream to handle 2 requests; calls=%d", upstreamCalls.Load())
 	}
 }
+
+func TestProxyStripsBrowserOriginHeadersAndDefaultsFMStream(t *testing.T) {
+	var seenOrigin, seenReferer, seenSecFetch string
+	var seenStream any
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenOrigin = r.Header.Get("Origin")
+		seenReferer = r.Header.Get("Referer")
+		for k, v := range r.Header {
+			if strings.HasPrefix(strings.ToLower(k), "sec-fetch-") && len(v) > 0 {
+				seenSecFetch = k + ":" + v[0]
+			}
+		}
+		if seenOrigin != "" || seenReferer != "" || seenSecFetch != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, `{"error":{"type":"permission_denied","message":"Cross-site requests are not allowed.","code":"403"}}`)
+			return
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode failed: %v", err)
+			w.WriteHeader(400)
+			return
+		}
+		seenStream = payload["stream"]
+		w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1")
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"choices":[{"message":{"content":"你好"}}]}`)
+	}))
+	t.Cleanup(upstream.Close)
+
+	m := testManager(t)
+	m.cfg.InternalPort = upstream.Listener.Addr().(*net.TCPAddr).Port
+	m.mu.Lock()
+	m.current.Type = "apple-api"
+	m.models = []Model{{ID: "apple-intelligence-translation", Path: "permissive", Type: "apple-api", IsTranslation: true}}
+	m.current = m.models[0]
+	m.mu.Unlock()
+	_, address := testAPI(t, m)
+
+	req, err := http.NewRequest("POST", address+"/v1/chat/completions", strings.NewReader(`{"model":"apple-intelligence-translation","messages":[{"role":"user","content":"Hello"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "chrome-extension://iecdpfnjngfljdlpookikhidlbfbmidb")
+	req.Header.Set("Referer", "https://example.com/article")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("POST /v1/chat/completions = %d %s, want 200", resp.StatusCode, string(body))
+	}
+	if seenOrigin != "" || seenReferer != "" || seenSecFetch != "" {
+		t.Fatalf("expected proxy to strip browser headers, got origin=%q referer=%q sec=%q", seenOrigin, seenReferer, seenSecFetch)
+	}
+	if seenStream != false {
+		t.Fatalf("expected AdaptPayload to default stream=false for apple-api, got %v", seenStream)
+	}
+	if aca := resp.Header.Values("Access-Control-Allow-Origin"); len(aca) != 1 || aca[0] != "*" {
+		t.Fatalf("expected single Access-Control-Allow-Origin: *, got %v", aca)
+	}
+
+	// Ensure management endpoints still enforce strict origin validation.
+	for _, mgmtPath := range []string{"/api/setup", "/api/autostart"} {
+		mReq, _ := http.NewRequest("POST", address+mgmtPath, strings.NewReader(`{"action":"enable-autostart"}`))
+		mReq.Header.Set("Content-Type", "application/json")
+		mReq.Header.Set("Origin", "https://evil.example")
+		mResp, err := client.Do(mReq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mResp.Body.Close()
+		if mResp.StatusCode != 403 {
+			t.Fatalf("POST %s with evil Origin = %d, want 403", mgmtPath, mResp.StatusCode)
+		}
+	}
+}

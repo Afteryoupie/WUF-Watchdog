@@ -413,6 +413,7 @@ func (a *API) inference(w http.ResponseWriter, r *http.Request) {
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.SetURL(&url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", a.manager.cfg.InternalPort)})
 				pr.Out = pr.Out.WithContext(ctx)
+				stripBrowserOriginHeaders(pr.Out.Header)
 				if model.Type == "apple-api" {
 					pr.Out.URL.Path = "/api" + pr.Out.URL.Path
 					pr.Out.URL.RawPath = ""
@@ -424,7 +425,10 @@ func (a *API) inference(w http.ResponseWriter, r *http.Request) {
 				pr.Out.ContentLength = int64(len(outBody))
 				pr.Out.Header.Del("Content-Length")
 			},
-			ModifyResponse: func(resp *http.Response) error { resp.Header.Set("Access-Control-Allow-Origin", "*"); return nil },
+			ModifyResponse: func(resp *http.Response) error {
+				resp.Header.Del("Access-Control-Allow-Origin")
+				return nil
+			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				if ctx.Err() == nil {
 					writeError(w, 502, "Cannot connect to LLM")
@@ -481,9 +485,25 @@ func AdaptPayload(payload map[string]any, model Model) {
 	switch model.Type {
 	case "apple-api":
 		payload["model"] = "permissive"
+		if _, hasStream := payload["stream"]; !hasStream {
+			payload["stream"] = false
+		}
 	case "apple":
 		payload["model"] = "system"
+		if _, hasStream := payload["stream"]; !hasStream {
+			payload["stream"] = false
+		}
 	default:
 		payload["model"] = model.Path
+	}
+}
+
+func stripBrowserOriginHeaders(header http.Header) {
+	header.Del("Origin")
+	header.Del("Referer")
+	for key := range header {
+		if strings.HasPrefix(strings.ToLower(key), "sec-fetch-") {
+			header.Del(key)
+		}
 	}
 }
