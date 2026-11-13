@@ -560,7 +560,7 @@ dialog .actions {
 <p>閒置時卸載模型，釋放運算資源。下次請求時自動喚醒。</p></div>
 <div id="startup-policy" class="policy"><span class="micro">03 / Startup</span><button id="btn-autostart" class="switch" role="switch" aria-checked="false" aria-describedby="autostart-description autostart-status" disabled><span>開機自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
 <p id="autostart-description">登入 Windows 後自動啟動 WUF Watchdog，隨時準備接收請求。</p><p id="autostart-status" role="status" aria-live="polite">正在讀取啟動設定…</p></div>
-<div class="policy"><span class="micro">04 / System</span><button id="btn-toggle-autostart" class="switch" role="switch" aria-checked="false" hidden><span>登入時自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
+<div class="policy"><span id="system-micro" class="micro">03 / System</span><button id="btn-toggle-autostart" class="switch" role="switch" aria-checked="false" hidden><span>登入時自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
 <p id="setup-native-status" class="sub" style="margin-top:10px">瀏覽器喚醒連接：檢查中…</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="btn-setup-native" class="btn" type="button">註冊瀏覽器連接</button><button id="btn-setup-uninstall" class="btn quiet" type="button">解除註冊</button></div>
 <div id="setup-fm-box" hidden style="margin-top:12px"><p id="setup-fm-status" class="sub"></p><button id="btn-copy-fm-license" class="btn quiet" type="button" hidden style="margin-top:6px">複製授權指令 (sudo /usr/bin/fm license)</button></div>
@@ -606,6 +606,7 @@ function renderSetup(st){
   if(!st)return;setupData=st;
   const isWin=st.platform==='windows';
   if($('startup-policy'))$('startup-policy').hidden=!isWin;
+  if($('system-micro'))$('system-micro').textContent=isWin?'04 / System':'03 / System';
   $('btn-toggle-autostart').hidden=isWin;
   const autoUnsupported=st.autostart==='unsupported'||st.autostart==='foreign';
   $('btn-toggle-autostart').disabled=busy||!connected||stopped||autoUnsupported;

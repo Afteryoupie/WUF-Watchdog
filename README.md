@@ -158,7 +158,7 @@ sudo /usr/bin/fm license
 
 ### C. 瀏覽器喚醒設定（已自動處理）
 
-雙擊啟動 **WUF Watchdog.app** 時，程式會自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並可在控制台右側「04 / System」查看 Apple 模型與連接狀態。
+雙擊啟動 **WUF Watchdog.app** 時，程式會自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並可在控制台右側「03 / System」查看 Apple 模型與連接狀態。
 
 若原本已有其他位置的註冊、或需要手動重新註冊，才需在終端機執行：
 
@@ -214,7 +214,7 @@ sudo /usr/bin/fm license
 
 ### 登入電腦時自動啟動（選用）
 
-一般安裝不會自動開啟這項功能。你可以直接在 **macOS 選單列圖示／Windows 系統匣選單** 勾選 **「登入時自動啟動」**，或在網頁控制台右側（Windows 為 **03 / Startup**、macOS 為 **04 / System**）切換開關，不需要輸入指令。
+一般安裝不會自動開啟這項功能。你可以直接在 **macOS 選單列圖示／Windows 系統匣選單** 勾選 **「登入時自動啟動」**，或在網頁控制台右側（Windows 為 **03 / Startup**、macOS 為 **03 / System**）切換開關，不需要輸入指令。
 
 若需以指令操作，Windows 可在 PowerShell 執行 `wuf-tool.exe control --action enable-autostart`，macOS 可在終端機執行 `wuf-tool install-mac --app ... --action enable-autostart`（取消時改為 `disable-autostart`）。
 
@@ -228,7 +228,7 @@ sudo /usr/bin/fm license
 
 ### 移除
 
-先在網頁控制台右側「03 / System」按 **「解除註冊」**（會一併清除目前使用者的瀏覽器喚醒與登入自動啟動設定），再退出 Watchdog。若已先退出，也可改用指令解除註冊：Windows 執行 `install-wuf.ps1 -Action Uninstall`，macOS 執行 `wuf-tool install-mac --app ... --action uninstall`。
+先在網頁控制台右側「System」區塊按 **「解除註冊」**（會一併清除目前使用者的瀏覽器喚醒與登入自動啟動設定），再退出 Watchdog。若已先退出，也可改用指令解除註冊：Windows 執行 `install-wuf.ps1 -Action Uninstall`，macOS 執行 `wuf-tool install-mac --app ... --action uninstall`。
 
 完成後即可刪除程式資料夾或 `.app`。解除註冊會保留模型、設定與紀錄；確定不需要時再自行刪除。WUF Translate 需另在瀏覽器中移除。
 
