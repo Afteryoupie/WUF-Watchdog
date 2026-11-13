@@ -363,6 +363,20 @@ func (c *controller) showMenu() {
 	separator(menu)
 	c.append(menu, 40, "開啟網頁控制台", true, false)
 	c.append(menu, 41, "複製 API 網址", true, false)
+	autostartEnabled := false
+	autostartAvailable := false
+	if connected && !busy {
+		if st, err := c.client.Setup(c.ctx); err == nil {
+			autostartEnabled = st.Autostart == "enabled"
+			autostartAvailable = st.Autostart == "enabled" || st.Autostart == "disabled"
+		}
+	}
+	c.append(menu, 43, "登入時自動啟動", autostartAvailable, autostartEnabled)
+	if autostartEnabled {
+		c.actions[43] = menuAction{"setup", url.Values{"action": {"disable-autostart"}}}
+	} else {
+		c.actions[43] = menuAction{"setup", url.Values{"action": {"enable-autostart"}}}
+	}
 	c.append(menu, 42, "重新整理狀態", true, false)
 	separator(menu)
 	c.append(menu, 50, "退出 WUF Watchdog", true, false)

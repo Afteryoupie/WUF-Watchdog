@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"wuf-translate/watchdog-go/internal/control"
+	"wuf-translate/watchdog-go/internal/setup"
 )
 
 type API struct {
@@ -190,6 +191,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, 200, a.status())
 			return
+		case "/api/setup":
+			writeJSON(w, 200, setup.QueryStatus(r.Context(), "", a.manager.cfg.Binaries.FM))
+			return
 		case "/v1/models", "/v1/models/":
 			if err := a.manager.Refresh(); err != nil {
 				writeError(w, 500, err.Error())
@@ -302,6 +306,37 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeJSON(w, 200, map[string]any{"status": "ok", "auto_sleep_enabled": on})
+			return
+		case "/api/setup":
+			action := r.URL.Query().Get("action")
+			if action == "" && r.ContentLength != 0 {
+				if payload, err := readObject(w, r, 64*1024); err == nil {
+					action, _ = payload["action"].(string)
+				}
+			}
+			var actionErr error
+			switch strings.ToLower(strings.TrimSpace(action)) {
+			case "enable-autostart":
+				actionErr = setup.SetAutostart("", true)
+			case "disable-autostart":
+				actionErr = setup.SetAutostart("", false)
+			case "install-native-host":
+				actionErr = setup.EnsureNativeHost("")
+			case "uninstall":
+				actionErr = setup.Uninstall("")
+			default:
+				writeJSON(w, 400, map[string]string{"status": "error", "message": "不支援的設定動作"})
+				return
+			}
+			if actionErr != nil {
+				code := 500
+				if strings.Contains(strings.ToLower(actionErr.Error()), "refusing") {
+					code = 409
+				}
+				writeJSON(w, code, map[string]any{"status": "error", "message": actionErr.Error(), "setup": setup.QueryStatus(r.Context(), "", a.manager.cfg.Binaries.FM)})
+				return
+			}
+			writeJSON(w, 200, map[string]any{"status": "ok", "setup": setup.QueryStatus(r.Context(), "", a.manager.cfg.Binaries.FM)})
 			return
 		}
 	}

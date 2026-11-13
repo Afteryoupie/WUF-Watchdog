@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"wuf-translate/watchdog-go/internal/core"
+	"wuf-translate/watchdog-go/internal/setup"
 )
 
 type Snapshot struct {
@@ -139,4 +140,26 @@ func (c *Client) Action(ctx context.Context, path string, query url.Values) erro
 		return errors.New(message)
 	}
 	return nil
+}
+
+func (c *Client) Setup(ctx context.Context) (*setup.Status, error) {
+	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/api/setup", nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := c.HTTP.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("setup HTTP %d", response.StatusCode)
+	}
+	var st setup.Status
+	if err := json.NewDecoder(http.MaxBytesReader(nil, response.Body, 1024*1024)).Decode(&st); err != nil {
+		return nil, err
+	}
+	return &st, nil
 }

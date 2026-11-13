@@ -558,8 +558,13 @@ dialog .actions {
 </div>
 <div class="policy"><span class="micro">02 / Energy</span><button id="btn-toggle-auto" class="switch" role="switch" aria-checked="true"><span>自動休眠</span><span class="switch-track" aria-hidden="true"></span></button>
 <p>閒置時卸載模型，釋放運算資源。下次請求時自動喚醒。</p></div>
-<div class="policy"><span class="micro">03 / Startup</span><button id="btn-autostart" class="switch" role="switch" aria-checked="false" aria-describedby="autostart-description autostart-status" disabled><span>開機自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
+<div id="startup-policy" class="policy"><span class="micro">03 / Startup</span><button id="btn-autostart" class="switch" role="switch" aria-checked="false" aria-describedby="autostart-description autostart-status" disabled><span>開機自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
 <p id="autostart-description">登入 Windows 後自動啟動 WUF Watchdog，隨時準備接收請求。</p><p id="autostart-status" role="status" aria-live="polite">正在讀取啟動設定…</p></div>
+<div class="policy"><span class="micro">04 / System</span><button id="btn-toggle-autostart" class="switch" role="switch" aria-checked="false" hidden><span>登入時自動啟動</span><span class="switch-track" aria-hidden="true"></span></button>
+<p id="setup-native-status" class="sub" style="margin-top:10px">瀏覽器喚醒連接：檢查中…</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="btn-setup-native" class="btn" type="button">註冊瀏覽器連接</button><button id="btn-setup-uninstall" class="btn quiet" type="button">解除註冊</button></div>
+<div id="setup-fm-box" hidden style="margin-top:12px"><p id="setup-fm-status" class="sub"></p><button id="btn-copy-fm-license" class="btn quiet" type="button" hidden style="margin-top:6px">複製授權指令 (sudo /usr/bin/fm license)</button></div>
+</div>
 </aside>
 </div>
 <footer class="footer"><span>WUF Watchdog <span aria-hidden="true">↔</span> 在你的裝置，掌握每一次運算。</span><span id="last-updated">等待同步</span></footer>
@@ -571,7 +576,7 @@ dialog .actions {
 </dialog>
 <script>
 let currentData=__INITIAL_STATE_JSON__;
-let autostartState=null,autostartBusy=false;
+let autostartState=null,autostartBusy=false,setupData=null;
 let busy=false,connected=true,stopped=false,toastTimer,modelKey='',decisionKey='';
 const $=id=>document.getElementById(id);
 function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').className='toast'+(error?' error':'');$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,4500)}
@@ -597,6 +602,33 @@ async function action(path,label){if(busy||!connected||stopped)return;busy=true;
 $('btn-wake').onclick=()=>action('wake','啟動引擎');$('btn-sleep').onclick=()=>action('sleep','模型休眠');$('btn-toggle-auto').onclick=()=>action('toggle_auto_sleep','更新休眠策略');$('btn-refresh').onclick=()=>fetchStatus(true);
 $('btn-decision-sleep').onclick=()=>action('decision/sleep','決策模型休眠');$('btn-decision-auto').onclick=()=>action('decision/toggle_auto_sleep','更新決策模型休眠策略');
 $('btn-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('endpoint-text').textContent);toast('API 網址已複製')}catch{toast('無法自動複製，請選取上方 API 網址手動複製。',true)}};
+function renderSetup(st){
+  if(!st)return;setupData=st;
+  const isWin=st.platform==='windows';
+  if($('startup-policy'))$('startup-policy').hidden=!isWin;
+  $('btn-toggle-autostart').hidden=isWin;
+  const autoUnsupported=st.autostart==='unsupported'||st.autostart==='foreign';
+  $('btn-toggle-autostart').disabled=busy||!connected||stopped||autoUnsupported;
+  $('btn-toggle-autostart').setAttribute('aria-checked',String(st.autostart==='enabled'));
+  const nativeLabels={installed:'瀏覽器喚醒連接：已註冊（Chrome / Edge）',not_installed:'瀏覽器喚醒連接：尚未註冊',foreign:'瀏覽器喚醒連接：偵測到其他位置的註冊（已保留）',unsupported:'瀏覽器喚醒連接：目前為開發模式執行'};
+  $('setup-native-status').textContent=nativeLabels[st.native_host]||'瀏覽器喚醒連接：未知';
+  $('btn-setup-native').disabled=busy||!connected||stopped||st.native_host==='installed'||st.native_host==='unsupported';
+  $('btn-setup-uninstall').disabled=busy||!connected||stopped||(st.native_host==='not_installed'&&st.autostart==='disabled')||st.native_host==='unsupported';
+  const fmBox=$('setup-fm-box'),fmStatus=$('setup-fm-status'),fmBtn=$('btn-copy-fm-license');
+  if(st.fm_status&&st.fm_status!=='not_applicable'){
+    fmBox.hidden=false;
+    const fmLabels={available:'Apple 模型：系統模型可用',license_required:'Apple 模型：尚未接受命令列條款（需於終端機執行 sudo /usr/bin/fm license）',missing:'Apple 模型：找不到 /usr/bin/fm（需 macOS 27）',unavailable:'Apple 模型：目前不可用'+(st.fm_message?'（'+st.fm_message+'）':'')};
+    fmStatus.textContent=fmLabels[st.fm_status]||'Apple 模型：未知';
+    fmBtn.hidden=st.fm_status!=='license_required';
+  }else{fmBox.hidden=true;fmBtn.hidden=true}
+}
+async function fetchSetup(){if(stopped)return;try{const res=await fetch('/api/setup',{signal:AbortSignal.timeout(5000)});if(res.ok)renderSetup(await res.json())}catch{}}
+async function setupAction(act,label){if(busy||!connected||stopped)return;busy=true;setButtons();if(setupData)renderSetup(setupData);toast(label+'中…');try{const res=await fetch('/api/setup?action='+encodeURIComponent(act),{method:'POST',signal:AbortSignal.timeout(10000)});const data=await res.json();if(data.setup)renderSetup(data.setup);if(!res.ok||data.status!=='ok')throw Error(data.message||'HTTP '+res.status);toast(label+'完成')}catch(e){toast(label+'失敗：'+e.message,true)}finally{busy=false;setButtons();if(setupData)renderSetup(setupData)}}
+$('btn-toggle-autostart').onclick=()=>{const on=setupData?.autostart==='enabled';setupAction(on?'disable-autostart':'enable-autostart',on?'取消登入自動啟動':'啟用登入自動啟動')};
+$('btn-setup-native').onclick=()=>setupAction('install-native-host','註冊瀏覽器喚醒連接');
+$('btn-setup-uninstall').onclick=()=>setupAction('uninstall','解除瀏覽器與登入啟動註冊');
+$('btn-copy-fm-license').onclick=async()=>{try{await navigator.clipboard.writeText('sudo /usr/bin/fm license');toast('已複製指令，請貼到「終端機」執行')}catch{toast('請手動複製：sudo /usr/bin/fm license',true)}};
+fetchSetup();
 $('btn-stop').onclick=()=>$('stop-dialog').showModal();$('cancel-stop').onclick=()=>$('stop-dialog').close();$('confirm-stop').onclick=async()=>{$('stop-dialog').close();if(busy)return;busy=true;setButtons();try{const res=await fetch('/api/stop',{method:'POST',signal:AbortSignal.timeout(5000)});if(!res.ok)throw Error('HTTP '+res.status);stopped=true;updateDog();$('connection-label').textContent='WUF Watchdog 已結束';$('connection').className='connection offline';$('cur-status').textContent='已停止';$('status-detail').textContent='重新啟動 WUF Watchdog 即可繼續';toast('WUF Watchdog 已結束，可以關閉此分頁。')}catch(e){toast('未能確認退出結果，正在重新確認連線。',true)}finally{busy=false;setButtons();if(!stopped)await fetchStatus()}};
 setInterval(()=>{if(!stopped&&!busy)fetchStatus()},2000);setInterval(()=>{if(connected&&!stopped&&currentData.status==='running'&&currentData.auto_sleep_enabled!==false&&currentData.idle_remaining>0){currentData.idle_remaining--;updateCountdown()}},1000);setConnection(true);updateUI(currentData);
 

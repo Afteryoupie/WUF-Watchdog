@@ -45,6 +45,8 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     private var decisionSnapshot: [String: Any] = [:]
     private var quitItem: NSMenuItem!
     private var refreshItem: NSMenuItem!
+    private var autostartItem: NSMenuItem!
+    private var autostartState = "disabled"
     private var timer: Timer?
     private var nextPoll: TimeInterval = 0
     private var polling = false
@@ -115,6 +117,7 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         item("開啟控制台", "rectangle.grid.2x2", #selector(openWebDashboard), key: "d")
         item("複製 API 網址", "doc.on.doc", #selector(copyApiUrl), key: "c")
+        autostartItem = item("登入時自動啟動", "bolt.badge.clock", #selector(toggleAutostart))
         refreshItem = item("重新連線", "arrow.clockwise", #selector(reconnect))
         menu.addItem(.separator())
         quitItem = item("退出 WUF Watchdog…", "power", #selector(quitApp), key: "q")
@@ -213,6 +216,8 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
             item.isEnabled = isConnected && !busy && !starting && !(selected && running) && item.action != nil
         }
         refreshItem.isHidden = isConnected
+        autostartItem.state = autostartState == "enabled" ? .on : .off
+        autostartItem.isEnabled = isConnected && !busy && (autostartState == "enabled" || autostartState == "disabled")
         quitItem.isEnabled = !busy
         let decisionStatus = decisionSnapshot["status"] as? String ?? "sleeping"
         let decisionActive = decisionSnapshot["active_requests"] as? Int ?? 0
@@ -330,8 +335,24 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         isMenuOpen = true
         refreshPresentation()
         fetchStatus()
+        fetchSetup()
     }
     func menuDidClose(_ menu: NSMenu) { isMenuOpen = false }
+
+    private func fetchSetup() {
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:8080/api/setup")!)
+        request.timeoutInterval = 1.5
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            RunLoop.main.perform(inModes: [.default, .eventTracking]) {
+                guard let self = self, error == nil, (response as? HTTPURLResponse)?.statusCode == 200,
+                      let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let auto = json["autostart"] as? String else { return }
+                self.autostartState = auto
+                self.refreshPresentation()
+            }
+        }.resume()
+    }
 
     private func perform(_ path: String, query: [URLQueryItem] = [], completion: (() -> Void)? = nil) {
         guard !busy else { return }
@@ -366,6 +387,12 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleAutoSleep() { perform("toggle_auto_sleep") }
     @objc private func toggleDecision() { perform(decisionSnapshot["status"] as? String == "running" ? "decision/sleep" : "decision/wake") }
     @objc private func toggleDecisionAuto() { perform("decision/toggle_auto_sleep") }
+    @objc private func toggleAutostart() {
+        let act = autostartState == "enabled" ? "disable-autostart" : "enable-autostart"
+        perform("setup", query: [URLQueryItem(name: "action", value: act)]) { [weak self] in
+            self?.fetchSetup()
+        }
+    }
     @objc private func reconnect() { feedback = nil; fetchStatus() }
     @objc private func copyApiUrl() {
         NSPasteboard.general.clearContents()

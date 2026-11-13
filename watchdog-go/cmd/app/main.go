@@ -10,7 +10,22 @@ import (
 	"path/filepath"
 	"time"
 	"wuf-translate/watchdog-go/internal/launch"
+	"wuf-translate/watchdog-go/internal/setup"
 )
+
+func logLauncherMessage(dataDir, message string) {
+	if dataDir == "" {
+		if root, lookupErr := os.UserConfigDir(); lookupErr == nil {
+			dataDir = filepath.Join(root, "WUFTranslate")
+		}
+	}
+	if dataDir != "" && os.MkdirAll(dataDir, 0700) == nil {
+		if output, openErr := os.OpenFile(filepath.Join(dataDir, "launcher.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600); openErr == nil {
+			log.New(output, "WUF app: ", log.LstdFlags).Print(message)
+			output.Close()
+		}
+	}
+}
 
 func run() error {
 	executable, err := os.Executable()
@@ -22,6 +37,9 @@ func run() error {
 	flag.Parse()
 	c, err := launch.LoadConfig(*config)
 	if err == nil {
+		if nativeErr := setup.EnsureNativeHost(executable); nativeErr != nil {
+			logLauncherMessage(c.DataDir, "native host auto-register skipped: "+nativeErr.Error())
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		reply := launch.Start(ctx, c)
@@ -30,18 +48,7 @@ func run() error {
 		}
 	}
 	if err != nil {
-		data := c.DataDir
-		if data == "" {
-			if root, lookupErr := os.UserConfigDir(); lookupErr == nil {
-				data = filepath.Join(root, "WUFTranslate")
-			}
-		}
-		if data != "" && os.MkdirAll(data, 0700) == nil {
-			if output, openErr := os.OpenFile(filepath.Join(data, "launcher.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600); openErr == nil {
-				log.New(output, "WUF app: ", log.LstdFlags).Print(err)
-				output.Close()
-			}
-		}
+		logLauncherMessage(c.DataDir, err.Error())
 	}
 	if err != nil && !*quiet {
 		showError(err.Error())

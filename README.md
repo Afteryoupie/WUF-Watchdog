@@ -4,10 +4,10 @@ WUF Watchdog 幫你啟動、切換及暫停電腦上的 AI 模型，並提供繁
 
 不需要先學會 LLM 的原理。macOS 預設使用 Apple Foundation Models，也就是 Apple 提供的本機 AI；Windows 則另外準備 GGUF 模型。先完成安裝與測試，再考慮其他模型或進階功能。
 
-> **目前安裝狀態（2026-10-25）：尚未提供可直接下載的 WUF Watchdog 安裝包。**
-> 一般使用者應下載已建置的 Windows 套件或 macOS APP，不需要自行編譯 EXE／APP。現階段公開安裝包仍待維護者提供；取得完整程式套件後，依下方流程設定。需要自行建置的人請見[開發者建置文件](docs/BUILD.md)，它不是一般使用者的安裝前置需求。
+> **目前安裝狀態（v0.2.1）：已於 [Releases 發布頁](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 提供 Windows x64 與 macOS Apple Silicon (`arm64`) 預編譯套件。**
+> 一般使用者請直接下載 Releases 中的對應壓縮檔，不需要自行編譯 EXE／APP。需要自行建置的人請見[開發者建置文件](docs/BUILD.md)，它不是一般使用者的安裝前置需求。
 >
-> 未來的安裝包會放在 [Releases 發布頁](https://github.com/Afteryoupie/WUF-Watchdog/releases)。GitHub 的 **Code → Download ZIP** 是原始碼，不是安裝包；只下載並解壓縮，還不能直接使用。
+> GitHub 的 **Code → Download ZIP** 是原始碼，不是安裝包；只下載並解壓縮，還不能直接使用。目前的預編譯套件尚未經過商業憑證簽署／Apple 公證，首次開啟時系統可能會顯示安全性提示。
 
 ## 先了解要安裝哪些東西
 
@@ -63,7 +63,7 @@ C:\WUF\Models\Qwen3-0.6B-Q8_0.gguf
 
 ### A. 準備程式套件與模型執行工具
 
-1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases)取得已建置的 Windows x64 完整套件，解壓縮至 `C:\WUF\Watchdog`。**目前尚未發布此附件；若頁面沒有套件，這一步暫時無法從公開下載完成。** 維護者可依[建置文件](docs/BUILD.md)製作套件。
+1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.1-windows-amd64.zip`**（或最新版的 `windows-amd64` 套件），解壓縮至 `C:\WUF\Watchdog`。不要下載 Source code ZIP。維護者可依[建置文件](docs/BUILD.md)自行製作套件。
 2. 確認 `C:\WUF\Watchdog` 直接包含 `app.exe`、`watchdog.exe`、`tray.exe`、`native-host.exe`、`wuf-tool.exe`、`launch.json`、`install-wuf.ps1` 及 `resources` 資料夾。不要只複製單一 EXE。
 3. 到 [llama.cpp 官方 Releases](https://github.com/ggml-org/llama.cpp/releases)，展開有程式附件的版本之 **Assets**，找名稱包含 **`bin-win-cpu-x64.zip`** 的附件。此處先使用 CPU 版確認流程；不要下載 Source code 或只有 `cudart` 的附件。若最新版本只有標記檔，往下找有二進位套件的版本。
 4. 將 llama.cpp 的 ZIP 完整解壓縮至 **`C:\WUF\llama.cpp`**，確認其中有 **`llama-server.exe`**。保留同包的 DLL 等檔案，不要只抽出 EXE。
@@ -108,17 +108,17 @@ C:\WUF\
 
 這裡使用 `/` 是為了方便填寫 JSON 路徑；Windows 可以讀取。`--models-dir` 後面填**模型資料夾**，`--llama` 後面填 **EXE 檔案本身**。先不要修改其他欄位。
 
-### C. 啟動並安裝瀏覽器連接功能
+### C. 啟動並連接瀏覽器
 
-1. 在檔案總管開啟 `C:\WUF\Watchdog`，雙擊 **`app.exe`**。它會在背景啟動，不一定出現一般程式視窗。
+1. 在檔案總管開啟 `C:\WUF\Watchdog`，雙擊 **`app.exe`**。它會在背景啟動並自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host）。
 2. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，依第 3 節確認模型能運作。
-3. 若要讓 WUF Translate 能從瀏覽器喚醒 Watchdog，在 PowerShell 執行：
+3. 若曾在其他資料夾安裝過舊版、導致自動註冊略過，可在控制台右側「03 / System」查看狀態，或手動執行：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\Watchdog\install-wuf.ps1' -Action Install
 ```
 
-看到 **`Native Host installed for current-user Chrome and Edge`** 就完成瀏覽器連接功能的註冊。請關閉並重新開啟瀏覽器。這一步只處理目前 Windows 使用者的 Chrome／Edge 連接，不會安裝擴充功能、模型或啟用登入自動啟動。
+看到 **`Native Host installed for current-user Chrome and Edge`** 後重新開啟瀏覽器。這一步只處理目前 Windows 使用者的 Chrome／Edge 連接，不會安裝擴充功能、模型或啟用登入自動啟動。
 
 ## 2B. macOS 安裝
 
@@ -146,9 +146,9 @@ sudo /usr/bin/fm license
 
 ### B. 安裝並開啟 WUF Watchdog
 
-> **目前 GitHub 尚未提供 macOS APP 下載附件。** 以下步驟適用於取得維護者提供的完整 `.app` 後；不能用 Source code ZIP 代替。開發者自行製作 APP 的方式另見[建置文件](docs/BUILD.md#macos建立原生-app)。
+> **目前提供 Apple Silicon (`arm64`) 的 macOS `.app` 套件**（採本機 ad-hoc 簽署，未經 Apple Developer ID 簽署與公證）。不能用 Source code ZIP 代替；開發者自行製作 APP 的方式另見[建置文件](docs/BUILD.md#macos建立原生-app)。
 
-1. 從 [Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases)取得適合自己 Mac 的已建置套件。若頁面沒有 APP 附件，表示公開安裝包尚未提供。
+1. 從 [Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.1-macos-arm64.zip`**（或最新版的 `macos-arm64` 套件）。
 2. 將套件解壓縮，把完整的 **WUF Watchdog.app** 放入個人「應用程式」資料夾。Finder 按 Shift + Command + G，輸入 `~/Applications` 即可前往；若資料夾不存在，先在個人資料夾建立 `Applications`。
 3. 雙擊 **WUF Watchdog.app**。它使用選單列圖示，不會出現一般主視窗。
 4. 用 Chrome 或 Edge 開啟 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**，在控制台選擇 **Apple Foundation Models**；若已選定且休眠，按「啟動引擎」。新手先維持這個模型即可。程式會記住上次選擇，曾用其他模型的人可手動切回 Apple。
@@ -156,18 +156,18 @@ sudo /usr/bin/fm license
 
 若 macOS 阻擋程式，確認來源後查看「系統設定 → 隱私權與安全性」顯示的提示。程式是否已完成 Developer ID 簽署及公證，應以該發布版本的說明為準。
 
-### C. 讓瀏覽器可以喚醒 Watchdog（選用）
+### C. 瀏覽器喚醒設定（已自動處理）
 
-手動開啟 APP 後即可使用 API 翻譯。要讓 WUF Translate 能從瀏覽器喚醒尚未啟動的 Watchdog，才需要註冊連接功能。在終端機執行：
+雙擊啟動 **WUF Watchdog.app** 時，程式會自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並可在控制台右側「03 / System」查看 Apple 模型與連接狀態。
+
+若原本已有其他位置的註冊、或需要手動重新註冊，才需在終端機執行：
 
 ```sh
 "$HOME/Applications/WUF Watchdog.app/Contents/MacOS/wuf-tool" install-mac \
   --app "$HOME/Applications/WUF Watchdog.app" --action install
 ```
 
-整段一起貼上，行尾的 `\` 表示同一條指令繼續到下一行。看到 **`Completed install`** 後，關閉並重新開啟 Chrome／Edge。若 APP 放在其他位置，兩處路徑都要改成實際位置。
-
-這一步只為目前使用者註冊瀏覽器連接，不會安裝 WUF Translate，也不會開啟登入自動啟動。
+看到 **`Completed install`** 後，關閉並重新開啟 Chrome／Edge。這一步只為目前使用者註冊瀏覽器連接，不會安裝 WUF Translate，也不會開啟登入自動啟動。
 
 ## 3. 第一次啟動：確認安裝成功
 
@@ -214,22 +214,9 @@ sudo /usr/bin/fm license
 
 ### 登入電腦時自動啟動（選用）
 
-一般安裝不會自動開啟這項功能。Windows 可在本機控制台右側卡片的第三項 **03 / Startup → 開機自動啟動** 設定；開關會讀回系統狀態，變更不會關閉目前正在執行的服務。已有 `WUF Watchdog Login` 登入排程時會控制該排程並保留延遲與重試設定；否則使用目前使用者的原生登入項目。
+一般安裝不會自動開啟這項功能。你可以直接在 **macOS 選單列圖示／Windows 系統匣選單** 勾選 **「登入時自動啟動」**，或在網頁控制台右側（Windows 為 **03 / Startup**、macOS 為 **04 / System**）切換開關，不需要輸入指令。
 
-也可在 PowerShell 執行（與控制台共用相同設定）：
-
-```powershell
-& 'C:\WUF\Watchdog\wuf-tool.exe' control --action enable-autostart
-```
-
-macOS 在終端機執行：
-
-```sh
-"$HOME/Applications/WUF Watchdog.app/Contents/MacOS/wuf-tool" install-mac \
-  --app "$HOME/Applications/WUF Watchdog.app" --action enable-autostart
-```
-
-這會設定下次登入時啟動。要取消，將上述 `enable-autostart` 改成 `disable-autostart` 再執行。
+若需以指令操作，Windows 可在 PowerShell 執行 `wuf-tool.exe control --action enable-autostart`，macOS 可在終端機執行 `wuf-tool install-mac --app ... --action enable-autostart`（取消時改為 `disable-autostart`）。
 
 ### 更換模型與更新程式
 
@@ -241,26 +228,15 @@ macOS 在終端機執行：
 
 ### 移除
 
-先退出 Watchdog，再解除瀏覽器連接與登入啟動註冊。Windows 執行：
+先在網頁控制台右側「03 / System」按 **「解除註冊」**（會一併清除目前使用者的瀏覽器喚醒與登入自動啟動設定），再退出 Watchdog。若已先退出，也可改用指令解除註冊：Windows 執行 `install-wuf.ps1 -Action Uninstall`，macOS 執行 `wuf-tool install-mac --app ... --action uninstall`。
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\Watchdog\install-wuf.ps1' -Action Uninstall
-```
-
-macOS 執行：
-
-```sh
-"$HOME/Applications/WUF Watchdog.app/Contents/MacOS/wuf-tool" install-mac \
-  --app "$HOME/Applications/WUF Watchdog.app" --action uninstall
-```
-
-完成後才能刪除程式資料夾或 `.app`。解除註冊會保留模型、設定與紀錄；確定不需要時再自行刪除。WUF Translate 需另在瀏覽器中移除。
+完成後即可刪除程式資料夾或 `.app`。解除註冊會保留模型、設定與紀錄；確定不需要時再自行刪除。WUF Translate 需另在瀏覽器中移除。
 
 ## 安裝遇到問題
 
 | 情況 | 處理方式 |
 | --- | --- |
-| Releases 沒有 Watchdog 安裝附件 | 目前尚未發布安裝包；需等待維護者提供，或由開發者依獨立建置文件製作。Source code ZIP 不能直接執行 |
+| Releases 找不到對應平台附件 | 確認是否展開該版本的 **Assets**，並選擇 `macos-arm64` 或 `windows-amd64` 壓縮檔；Source code ZIP 不能直接執行。其他架構需由開發者依建置文件製作 |
 | Windows 說缺少 DLL | 將 llama.cpp 整包解壓縮，保留 EXE 旁的 DLL；不要只複製單一 EXE |
 | macOS 找不到 `/usr/bin/fm` | 本頁預設的 Apple 流程需要 macOS 27；有 Apple Intelligence 不代表一定有這個工具 |
 | Apple 模型不可用 | 執行 `/usr/bin/fm available --model system`，依提示檢查 Apple Intelligence 下載狀態、語言／地區及工具條款 |

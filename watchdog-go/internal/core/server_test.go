@@ -322,3 +322,16 @@ func TestDecisionRunsIndependentlyAndChecksStartupIdentity(t *testing.T) {
 		t.Fatal("decision health was not recorded")
 	}
 }
+
+func TestSetupEndpoint(t *testing.T) {
+	m := testManager(t)
+	_, address := testAPI(t, m, nil)
+	code, body := readJSON(t, "GET", address+"/api/setup", "")
+	if code != 200 || body["platform"] == "" {
+		t.Fatalf("GET /api/setup = (%d, %v)", code, body)
+	}
+	code, body = readJSON(t, "POST", address+"/api/setup?action=unknown", "")
+	if code != 400 || body["status"] != "error" {
+		t.Fatalf("POST /api/setup?action=unknown = (%d, %v)", code, body)
+	}
+}
