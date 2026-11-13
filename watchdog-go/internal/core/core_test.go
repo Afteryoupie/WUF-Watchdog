@@ -53,6 +53,7 @@ func TestDiscoveryAndPersistence(t *testing.T) {
 	writeFile(t, filepath.Join(c.ModelsDir, "decision", "rl_agent_config.json"))
 	writeFile(t, filepath.Join(c.ModelsDir, "decision", "model.gguf"))
 	writeFile(t, filepath.Join(c.ModelsDir, "mlx", "config.json"))
+	writeFile(t, filepath.Join(c.ModelsDir, "omlx", "config.json"))
 	writeFile(t, filepath.Join(c.ModelsDir, "mmproj-only.gguf"))
 	writeFile(t, filepath.Join(c.ModelsDir, ".hidden.gguf"))
 	models, err := Discover(c)
@@ -61,6 +62,11 @@ func TestDiscoveryAndPersistence(t *testing.T) {
 	}
 	if len(models) != 2 || models[0].ID != "Qwen3VL-test" || !models[0].IsTranslation {
 		t.Fatalf("models: %+v", models)
+	}
+	for _, m := range models {
+		if m.Type == "mlx" || m.Type == "omlx" || m.Type == "laya" {
+			t.Fatalf("unsupported Python backend discovered: %+v", m)
+		}
 	}
 	if Projector(c, models[0]) != filepath.Join(c.ModelsDir, "Qwen3VL-test", "mmproj-f16.gguf") {
 		t.Fatal("nested projector missing")
@@ -93,12 +99,27 @@ func TestDiscoveryAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models) != 4 {
+	if len(models) != 3 {
 		t.Fatalf("mac models: %+v", models)
 	}
 	found, ok := FindModel(models, "Apple Foundation Models")
 	if !ok || found.Type != "apple-api" {
 		t.Fatalf("Apple: %+v", found)
+	}
+	// Legacy last_model.json pointing to removed backends falls back cleanly to first available model.
+	for _, legacyID := range []string{"legacy-mlx-model", "laya-multilingual"} {
+		if err := SaveLastModel(c.DataDir, legacyID); err != nil {
+			t.Fatal(err)
+		}
+		fallbackMgr, err := NewManager(c)
+		if err != nil {
+			t.Fatalf("NewManager failed with legacy last_model %q: %v", legacyID, err)
+		}
+		if fallbackMgr.Snapshot().CurrentModelID != models[0].ID {
+			fallbackMgr.Stop()
+			t.Fatalf("legacy %q fell back to %q, want %q", legacyID, fallbackMgr.Snapshot().CurrentModelID, models[0].ID)
+		}
+		fallbackMgr.Stop()
 	}
 }
 
@@ -108,8 +129,7 @@ func TestCommandsUseCorePaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Binaries = Binaries{Llama: executable, K2Llama: executable, Python: executable,
-		OMLX: executable, FM: executable, AppleAPI: executable}
+	c.Binaries = Binaries{Llama: executable, K2Llama: executable, FM: executable, AppleAPI: executable}
 	c.Platform = "darwin"
 	model := Model{ID: "fixture", Name: "Fixture", Path: filepath.Join(c.ModelsDir, "fixture.gguf"), Type: "gguf"}
 	cases := []struct {
@@ -120,8 +140,6 @@ func TestCommandsUseCorePaths(t *testing.T) {
 		{"gguf", model.Path, []string{"--model", model.Path, "--host", "127.0.0.1", "--port", "8081", "--ctx-size", "32768", "--n-gpu-layers", "99", "--batch-size", "512", "--ubatch-size", "512", "--flash-attn", "on", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"}, "/health"},
 		{"apple-api", "permissive", []string{"serve", "--hostname", "127.0.0.1", "--port", "8081"}, "/api/v1/models"},
 		{"apple", "system", []string{"serve", "--host", "127.0.0.1", "--port", "8081"}, "/v1/models"},
-		{"omlx", model.Path, []string{"serve", "--model-dir", c.ModelsDir, "--host", "127.0.0.1", "--port", "8081", "--log-level", "warning"}, "/health"},
-		{"mlx", model.Path, []string{"-m", "mlx_lm.server", "--model", model.Path, "--host", "127.0.0.1", "--port", "8081", "--max-tokens", "32768"}, "/health"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.kind, func(t *testing.T) {
@@ -138,6 +156,13 @@ func TestCommandsUseCorePaths(t *testing.T) {
 				t.Fatal("wrong health route")
 			}
 		})
+	}
+	for _, unsupported := range []string{"omlx", "mlx", "laya"} {
+		m := model
+		m.Type = unsupported
+		if _, err := Command(c, m); err == nil {
+			t.Fatalf("unsupported model type %q must return error", unsupported)
+		}
 	}
 	model.ID = "K2-Horizon"
 	argv, err := Command(c, model)
@@ -558,5 +583,114 @@ func TestSnapshotMatchesPortableFixture(t *testing.T) {
 	delete(actual, "models")
 	if !reflect.DeepEqual(actual, fixture.Cases[0].JSON) {
 		t.Fatalf("Go status differs from the portable Python contract: %#v", actual)
+	}
+}
+
+func TestManagerHasModelAndSkipRedundantLastModelSave(t *testing.T) {
+	c := testConfig(t)
+	writeFile(t, filepath.Join(c.ModelsDir, "alpha.gguf"))
+	writeFile(t, filepath.Join(c.ModelsDir, "beta.gguf"))
+	m, err := NewManager(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+	m.start = func(context.Context, Model) (*child, error) { return helper(t, false), nil }
+	m.probe = func(context.Context, Model) error { return nil }
+
+	for _, alias := range []string{"", "default", "alpha", filepath.Join(c.ModelsDir, "alpha.gguf")} {
+		if !m.HasModel(alias) {
+			t.Fatalf("expected HasModel(%q) to be true", alias)
+		}
+	}
+	if m.HasModel("nonexistent") {
+		t.Fatal("expected HasModel(\"nonexistent\") to be false")
+	}
+
+	if err := m.Switch(context.Background(), "alpha"); err != nil {
+		t.Fatal(err)
+	}
+	lastFile := filepath.Join(c.DataDir, "last_model.json")
+	past := time.Now().Add(-10 * time.Second).Truncate(time.Second)
+	if err := os.Chtimes(lastFile, past, past); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Sleep(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Wake(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(lastFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(past) {
+		t.Fatalf("expected last_model.json not to be rewritten on second wake of same model; got mtime %v, want %v", info.ModTime(), past)
+	}
+	if err := m.Switch(context.Background(), "beta"); err != nil {
+		t.Fatal(err)
+	}
+	info2, err := os.Stat(lastFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info2.ModTime().After(past) {
+		t.Fatalf("expected last_model.json to be updated when switching to beta")
+	}
+}
+
+func TestAdaptPayloadTargetLanguageAndQwen3NoThink(t *testing.T) {
+	riva := Model{ID: "Riva-Translate-4B", Type: "gguf", Path: "/models/riva.gguf"}
+	rivaPayload := map[string]any{
+		"model":           "Riva-Translate-4B",
+		"target_language": "Traditional Chinese",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "Hello"},
+		},
+	}
+	AdaptPayload(rivaPayload, riva)
+	if _, exists := rivaPayload["target_language"]; exists {
+		t.Fatal("target_language leaked into upstream payload")
+	}
+	msg := rivaPayload["messages"].([]any)[0].(map[string]any)["content"]
+	if msg != "Translate this into Traditional Chinese: Hello" {
+		t.Fatalf("unexpected adapted Riva message: %v", msg)
+	}
+
+	rivaAlreadyPrefixed := map[string]any{
+		"model":           "Riva-Translate-4B",
+		"target_language": "Traditional Chinese",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "Translate this into Traditional Chinese: Hello"},
+		},
+	}
+	AdaptPayload(rivaAlreadyPrefixed, riva)
+	msg2 := rivaAlreadyPrefixed["messages"].([]any)[0].(map[string]any)["content"]
+	if msg2 != "Translate this into Traditional Chinese: Hello" {
+		t.Fatalf("Riva prefix duplicated: %v", msg2)
+	}
+
+	qwen3 := Model{ID: "Qwen3-0.6B-Q8_0", Type: "gguf", Path: "/models/qwen3.gguf"}
+	qwenPayload := map[string]any{
+		"model": "Qwen3-0.6B-Q8_0",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "Hello"},
+		},
+	}
+	AdaptPayload(qwenPayload, qwen3)
+	kwargs, ok := qwenPayload["chat_template_kwargs"].(map[string]any)
+	if !ok || kwargs["enable_thinking"] != false {
+		t.Fatalf("expected chat_template_kwargs.enable_thinking=false for Qwen3, got %#v", qwenPayload["chat_template_kwargs"])
+	}
+
+	custom := map[string]any{"enable_thinking": true}
+	qwenExplicit := map[string]any{
+		"model":                "Qwen3-0.6B-Q8_0",
+		"chat_template_kwargs": custom,
+	}
+	AdaptPayload(qwenExplicit, qwen3)
+	if qwenExplicit["chat_template_kwargs"].(map[string]any)["enable_thinking"] != true {
+		t.Fatal("explicit chat_template_kwargs was overwritten")
 	}
 }

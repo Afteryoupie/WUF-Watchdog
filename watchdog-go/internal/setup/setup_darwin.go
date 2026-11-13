@@ -16,6 +16,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"wuf-translate/watchdog-go/internal/launch"
@@ -187,6 +188,14 @@ func plistMatches(path string, expected map[string]any) (exists bool, match bool
 	return true, reflect.DeepEqual(actual, expected), nil
 }
 
+var fmStatusCache struct {
+	mu      sync.Mutex
+	bin     string
+	status  string
+	message string
+	expires time.Time
+}
+
 func queryFM(ctx context.Context, fmBin string) (string, string) {
 	if fmBin == "" {
 		return "missing", ""
@@ -195,11 +204,26 @@ func queryFM(ctx context.Context, fmBin string) (string, string) {
 	if err != nil || !info.Mode().IsRegular() {
 		return "missing", ""
 	}
+	now := time.Now()
+	fmStatusCache.mu.Lock()
+	if fmStatusCache.bin == fmBin && fmStatusCache.status == "available" && now.Before(fmStatusCache.expires) {
+		status, msg := fmStatusCache.status, fmStatusCache.message
+		fmStatusCache.mu.Unlock()
+		return status, msg
+	}
+	fmStatusCache.mu.Unlock()
+
 	fmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(fmCtx, fmBin, "available", "--model", "system").CombinedOutput()
 	msg := strings.TrimSpace(string(out))
 	if err == nil {
+		fmStatusCache.mu.Lock()
+		fmStatusCache.bin = fmBin
+		fmStatusCache.status = "available"
+		fmStatusCache.message = msg
+		fmStatusCache.expires = time.Now().Add(30 * time.Second)
+		fmStatusCache.mu.Unlock()
 		return "available", msg
 	}
 	lower := strings.ToLower(msg)

@@ -41,12 +41,10 @@ func modelPriority(id string) int {
 		return 0
 	case strings.Contains(id, "hy-mt2") || strings.Contains(id, "translate"):
 		return 1
-	case strings.Contains(id, "ling-3.0-tiny-mlx"):
-		return 2
 	case strings.Contains(id, "ling"):
-		return 3
+		return 2
 	default:
-		return 4
+		return 3
 	}
 }
 
@@ -101,15 +99,8 @@ func Discover(c Config) ([]Model, error) {
 					break
 				}
 			}
-			switch {
-			case weight != "":
+			if weight != "" {
 				add(name, weight, "gguf", isTranslation(name))
-			case c.Platform == "windows":
-				continue
-			case isFile(filepath.Join(path, "oq_imatrix_report.json")) || strings.Contains(strings.ToLower(name), "oq"):
-				add(name, path, "omlx", isTranslation(name))
-			case isFile(filepath.Join(path, "config.json")):
-				add(name, path, "mlx", isTranslation(name))
 			}
 		} else if info.Mode().IsRegular() && strings.EqualFold(filepath.Ext(name), ".gguf") {
 			id := strings.TrimSuffix(name, filepath.Ext(name))

@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 type Subtitle struct {
@@ -349,38 +348,4 @@ func RunSubtitleDiagnostic(ctx context.Context, options SubtitleOptions) error {
 }
 func srtTime(ms int64) string {
 	return fmt.Sprintf("%02d:%02d:%02d,%03d", ms/3600000, ms/60000%60, ms/1000%60, ms%1000)
-}
-
-// DecisionProbe replaces the old scratch script without a hardcoded cloud credential.
-func DecisionProbe(ctx context.Context, endpoint, key, left, right string) (json.RawMessage, error) {
-	if strings.TrimFunc(left, unicode.IsSpace) == "" || strings.TrimSpace(right) == "" {
-		return nil, errors.New("both left and right subtitle fragments are required")
-	}
-	body := map[string]any{"model": "laya-multilingual", "state": map[string]any{"boundaries": []map[string]string{{"left": left, "right": right}}}, "questions": map[string]any{"boundary_0": map[string]string{"type": "noul", "instructions": "Does right start a new sentence?"}}}
-	raw, _ := json.Marshal(body)
-	request, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(raw))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	if key != "" {
-		request.Header.Set("Authorization", "Bearer "+key)
-	}
-	client := &http.Client{Timeout: 130 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("decision HTTP %d: %s", response.StatusCode, string(data))
-	}
-	if !json.Valid(data) {
-		return nil, errors.New("decision response is not JSON")
-	}
-	return data, nil
 }

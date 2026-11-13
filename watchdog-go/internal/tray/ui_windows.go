@@ -99,9 +99,9 @@ type controller struct {
 	wg                      sync.WaitGroup
 	icons                   map[string]uintptr
 	ownedIcons              []uintptr
-	popup                   uintptr
-	modelMenu, decisionMenu uintptr
-	actions                 map[uint32]menuAction
+	popup      uintptr
+	modelMenu  uintptr
+	actions    map[uint32]menuAction
 	modelIDs                map[uint32]string
 	taskbarMessage          uint32
 	panel                   *nativePanel
@@ -353,14 +353,6 @@ func (c *controller) showMenu() {
 	c.append(menu, 21, "閒置時自動休眠", connected && !busy, false)
 	c.actions[21] = menuAction{"toggle_auto_sleep", nil}
 	separator(menu)
-	decisions, _, _ := createPopup.Call()
-	c.decisionMenu = decisions
-	c.append(decisions, 30, "啟動決策模型", connected && !busy, false)
-	c.actions[30] = menuAction{"decision/wake", nil}
-	c.append(decisions, 31, "閒置 3 分鐘後自動休眠", connected && !busy, false)
-	c.actions[31] = menuAction{"decision/toggle_auto_sleep", nil}
-	appendMenu.Call(menu, 0x10, decisions, pointer(wide("決策模型 · Laya multilingual")))
-	separator(menu)
 	c.append(menu, 40, "開啟網頁控制台", true, false)
 	c.append(menu, 41, "複製 API 網址", true, false)
 	autostartEnabled := false
@@ -419,7 +411,6 @@ func (c *controller) updatePopup() {
 	c.mu.Unlock()
 	state := "未連線"
 	primary := "啟動模型"
-	decisionPrimary := "啟動決策模型"
 	if data != nil {
 		switch data.Status {
 		case "starting":
@@ -433,9 +424,6 @@ func (c *controller) updatePopup() {
 		default:
 			state = "休眠待命"
 		}
-		if data.Decision.Status == "running" {
-			decisionPrimary = "決策模型休眠"
-		}
 		if feedback == "" {
 			feedback = Compact(data.CurrentModel)
 		}
@@ -443,24 +431,16 @@ func (c *controller) updatePopup() {
 	if busy {
 		state = "正在處理…"
 	}
-	for id, text := range map[uint32]string{10: state, 11: "休眠倒數：" + Countdown(data, time.Since(updated)), 12: Compact(feedback), 20: primary, 30: decisionPrimary} {
+	for id, text := range map[uint32]string{10: state, 11: "休眠倒數：" + Countdown(data, time.Since(updated)), 12: Compact(feedback), 20: primary} {
 		flags := uintptr(0)
 		if id == 10 || id == 11 || id == 12 {
 			flags = 1
 		}
-		target := c.popup
-		if id == 30 {
-			target = c.decisionMenu
-		}
-		modifyMenu.Call(target, uintptr(id), flags, uintptr(id), pointer(wide(strings.ReplaceAll(text, "&", "&&"))))
+		modifyMenu.Call(c.popup, uintptr(id), flags, uintptr(id), pointer(wide(strings.ReplaceAll(text, "&", "&&"))))
 	}
 	if data == nil {
-		for _, id := range []uint32{20, 21, 30, 31} {
-			target := c.popup
-			if id >= 30 {
-				target = c.decisionMenu
-			}
-			enableMenu.Call(target, uintptr(id), 1)
+		for _, id := range []uint32{20, 21} {
+			enableMenu.Call(c.popup, uintptr(id), 1)
 		}
 		return
 	}
@@ -478,34 +458,17 @@ func (c *controller) updatePopup() {
 		primaryPath = "sleep"
 	}
 	c.actions[20] = menuAction{primaryPath, nil}
-	decisionPath := "decision/wake"
-	if data.Decision.Status == "running" {
-		decisionPath = "decision/sleep"
+	flag := uintptr(0)
+	if data.AutoSleepEnabled {
+		flag = 8
 	}
-	c.actions[30] = menuAction{decisionPath, nil}
-	for id, on := range map[uint32]bool{21: data.AutoSleepEnabled, 31: data.Decision.AutoSleepEnabled} {
-		flag := uintptr(0)
-		if on {
-			flag = 8
-		}
-		target := c.popup
-		if id == 31 {
-			target = c.decisionMenu
-		}
-		checkMenu.Call(target, uintptr(id), flag)
-	}
-	for id, enabled := range map[uint32]bool{20: !busy && data.Status != "starting" && data.ActiveRequests == 0, 21: !busy,
-		30: !busy && len(data.Decision.Models) > 0 && data.Decision.RuntimeAvailable && data.Decision.Status != "starting" && data.Decision.ActiveRequests == 0,
-		31: !busy && len(data.Decision.Models) > 0} {
+	checkMenu.Call(c.popup, 21, flag)
+	for id, enabled := range map[uint32]bool{20: !busy && data.Status != "starting" && data.ActiveRequests == 0, 21: !busy} {
 		flag := uintptr(0)
 		if !enabled {
 			flag = 1
 		}
-		target := c.popup
-		if id >= 30 {
-			target = c.decisionMenu
-		}
-		enableMenu.Call(target, uintptr(id), flag)
+		enableMenu.Call(c.popup, uintptr(id), flag)
 	}
 	for id, model := range c.modelIDs {
 		checked := uintptr(0)

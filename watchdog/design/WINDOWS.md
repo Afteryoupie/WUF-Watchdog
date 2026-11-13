@@ -9,7 +9,7 @@ Build from the repository root using an absolute Go executable:
 & ./runtime/windows/wuf-tool.exe control --action start
 ```
 
-The package uses native Go binaries directly. Python is needed only for isolated Laya inference; no BAT or command-file launcher is used by automation.
+The package uses native Go binaries directly with no Python dependency; no BAT or command-file launcher is used by automation.
 
 ## macOS
 

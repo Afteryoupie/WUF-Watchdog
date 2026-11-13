@@ -24,9 +24,8 @@ func TestPortableHTTPContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixture struct {
-		Model    Model          `json:"model"`
-		Decision map[string]any `json:"decision"`
-		Cases    []struct {
+		Model Model `json:"model"`
+		Cases []struct {
 			Name, Method, Path string
 			Code               int
 			JSON               map[string]any    `json:"json"`
@@ -35,7 +34,6 @@ func TestPortableHTTPContract(t *testing.T) {
 			ResponseHeaders    map[string]string `json:"response_headers"`
 			Contains           string            `json:"contains"`
 			Busy               bool              `json:"busy"`
-			DecisionBusy       bool              `json:"decision_busy"`
 			WakeOK             *bool             `json:"wake_ok"`
 			Setup              struct {
 				Starting bool `json:"is_starting"`
@@ -67,26 +65,12 @@ func TestPortableHTTPContract(t *testing.T) {
 			}
 			m.probe = func(context.Context, Model) error { return nil }
 			m.starting = testCase.Setup.Starting
-			a, address := testAPI(t, m, nil)
-			d := a.decision
-			for _, call := range testCase.Calls {
-				if call == "decision_wake" {
-					d.manager.current = Model{ID: DecisionModelID, Name: "Laya multilingual", Path: "/fixture/laya", Type: "laya", IdleTimeout: 180}
-					d.manager.start = func(context.Context, Model) (*child, error) { return helper(t, false), nil }
-					d.manager.probe = func(context.Context, Model) error { return nil }
-				}
-			}
+			a, address := testAPI(t, m)
 			if testCase.Busy {
 				if err := m.acquire(context.Background(), true); err != nil {
 					t.Fatal(err)
 				}
 				defer m.release()
-			}
-			if testCase.DecisionBusy {
-				if err := d.manager.acquire(context.Background(), true); err != nil {
-					t.Fatal(err)
-				}
-				defer d.manager.release()
 			}
 			req, err := http.NewRequest(testCase.Method, address+testCase.Path, strings.NewReader(string(testCase.Body)))
 			if err != nil {
@@ -137,13 +121,13 @@ func TestPortableHTTPContract(t *testing.T) {
 						t.Errorf("%s: %#v != %#v", key, actual[key], value)
 					}
 				}
-				if testCase.Path == "/api/status" {
-					if !reflect.DeepEqual(actual["decision"], fixture.Decision) {
-						t.Errorf("decision shape: %#v", actual["decision"])
+				cors := response.Header.Get("Access-Control-Allow-Origin")
+				if strings.HasPrefix(testCase.Path, "/v1/") {
+					if cors != "*" {
+						t.Fatalf("missing /v1 CORS, got %q", cors)
 					}
-				}
-				if response.Header.Get("Access-Control-Allow-Origin") != "*" {
-					t.Fatal("missing CORS")
+				} else if cors != "" {
+					t.Fatalf("management route %s must not expose wildcard CORS, got %q", testCase.Path, cors)
 				}
 			}
 			if testCase.Contains != "" && !strings.Contains(string(content), testCase.Contains) {
@@ -165,6 +149,70 @@ func TestPortableHTTPContract(t *testing.T) {
 				case <-time.After(3 * time.Second):
 					t.Fatal("stop did not complete")
 				}
+			}
+		})
+	}
+}
+
+func TestCrossProjectRivaContract(t *testing.T) {
+	type contractCase struct {
+		Name            string          `json:"name"`
+		Model           string          `json:"model"`
+		Payload         json.RawMessage `json:"payload"`
+		ExpectedContent string          `json:"expected_content"`
+	}
+
+	cases := []contractCase{
+		{
+			Name:            "explicit_riva_from_translate",
+			Model:           "org/riva-translate-4b",
+			Payload:         json.RawMessage(`{"model":"org/riva-translate-4b","messages":[{"role":"system","content":"Translate cleanly."},{"role":"user","content":"Translate this into Traditional Chinese: Hello"}]}`),
+			ExpectedContent: "Translate this into Traditional Chinese: Hello",
+		},
+		{
+			Name:            "server_default_resolves_to_riva",
+			Model:           "",
+			Payload:         json.RawMessage(`{"target_language":"Traditional Chinese","messages":[{"role":"system","content":"Translate cleanly."},{"role":"user","content":"Hello"}]}`),
+			ExpectedContent: "Translate this into Traditional Chinese: Hello",
+		},
+	}
+
+	if fixturePath := strings.TrimSpace(os.Getenv("WUF_RIVA_CONTRACT_FIXTURES")); fixturePath != "" {
+		raw, err := os.ReadFile(fixturePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cases = nil
+		if err := json.Unmarshal(raw, &cases); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rivaModel := Model{ID: "org/riva-translate-4b", Name: "Riva-Translate-4B-Instruct", Type: "gguf"}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			var decoded map[string]any
+			if err := json.Unmarshal(tc.Payload, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			AdaptPayload(decoded, rivaModel)
+			if _, exists := decoded["target_language"]; exists {
+				t.Fatalf("expected target_language stripped, got %v", decoded)
+			}
+			if _, exists := decoded["shinkansen_target_language"]; exists {
+				t.Fatalf("expected shinkansen_target_language stripped, got %v", decoded)
+			}
+			msgs, _ := decoded["messages"].([]any)
+			if len(msgs) == 0 {
+				t.Fatalf("missing messages in %v", decoded)
+			}
+			lastMsg, _ := msgs[len(msgs)-1].(map[string]any)
+			content, _ := lastMsg["content"].(string)
+			if content != tc.ExpectedContent {
+				t.Fatalf("content=%q want %q (full=%v)", content, tc.ExpectedContent, decoded)
+			}
+			if strings.Count(content, "Translate this into ") != 1 {
+				t.Fatalf("expected exactly one Riva prefix in %q", content)
 			}
 		})
 	}

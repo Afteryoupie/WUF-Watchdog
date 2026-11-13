@@ -7,13 +7,13 @@ import (
 )
 
 type panelView struct {
-	status, countdown, detail, model, primary, auto, decision                   string
-	progress                                                                    float64
-	ready, primaryEnabled, modelsEnabled, decisionEnabled, autoEnabled, checked bool
+	status, countdown, detail, model, primary, auto     string
+	progress                                            float64
+	ready, primaryEnabled, modelsEnabled, autoEnabled, checked bool
 }
 
 func panelState(data *Snapshot, elapsed time.Duration, busy bool, feedback string) panelView {
-	v := panelView{status: "未連線", countdown: "—", detail: "無法連線至本機 Watchdog", model: "尚無可用模型", primary: "啟動模型", auto: "閒置時自動休眠", decision: "決策模型 · Laya multilingual · 未連線"}
+	v := panelView{status: "未連線", countdown: "—", detail: "無法連線至本機 Watchdog", model: "尚無可用模型", primary: "啟動模型", auto: "閒置時自動休眠"}
 	if data == nil {
 		return v
 	}
@@ -21,7 +21,6 @@ func panelState(data *Snapshot, elapsed time.Duration, busy bool, feedback strin
 	v.primaryEnabled = !busy && data.Status != "starting" && data.ActiveRequests == 0
 	v.modelsEnabled = v.primaryEnabled && len(data.Models) > 0
 	v.autoEnabled = !busy && data.IdleTimeout > 0
-	v.decisionEnabled = !busy && len(data.Decision.Models) > 0
 	v.checked = data.AutoSleepEnabled
 	v.auto = fmt.Sprintf("閒置 %d 分鐘後自動休眠", data.IdleTimeout/60)
 	if data.IdleTimeout <= 0 {
@@ -51,17 +50,6 @@ func panelState(data *Snapshot, elapsed time.Duration, busy bool, feedback strin
 		v.status = "休眠待命"
 		v.detail = "下一次請求會自動喚醒"
 	}
-	decision := "休眠待命"
-	switch data.Decision.Status {
-	case "starting":
-		decision = "載入中…"
-	case "running":
-		decision = "準備就緒"
-		if data.Decision.ActiveRequests > 0 {
-			decision = "處理中"
-		}
-	}
-	v.decision = "決策模型 · Laya multilingual · " + decision
 	if busy {
 		v.status = "正在處理…"
 	}

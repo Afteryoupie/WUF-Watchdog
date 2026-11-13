@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -39,13 +41,32 @@ type Manager struct {
 	cancel                     context.CancelFunc
 	models                     []Model
 	current                    Model
+	lastSavedID                string
+	modelsDirMtime             time.Time
 	proc                       *child
 	starting, ready, autoSleep bool
 	lastActive                 time.Time
 	active                     int
 	requests                   uint64
+	client                     *http.Client
+	onStop                     func()
 	start                      func(context.Context, Model) (*child, error)
 	probe                      func(context.Context, Model) error
+}
+
+func dirModTime(path string) time.Time {
+	if info, err := os.Stat(path); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
+}
+
+func modelPathPresent(path string) bool {
+	if !filepath.IsAbs(path) {
+		return true
+	}
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func NewManager(c Config) (*Manager, error) {
@@ -65,22 +86,30 @@ func NewManager(c Config) (*Manager, error) {
 
 func managerForModels(c Config, models []Model, last string) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{cfg: c, models: models, gate: make(chan struct{}, 1), changed: make(chan struct{}), ctx: ctx, cancel: cancel,
-		autoSleep: true, lastActive: time.Now()}
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			Proxy:               nil,
+			DisableKeepAlives:   false,
+			MaxIdleConnsPerHost: 4,
+			IdleConnTimeout:     30 * time.Second,
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	m := &Manager{cfg: c, models: models, modelsDirMtime: dirModTime(c.ModelsDir), gate: make(chan struct{}, 1), changed: make(chan struct{}),
+		ctx: ctx, cancel: cancel, autoSleep: true, lastActive: time.Now(), client: client}
 	if model, ok := FindModel(models, last); last != "" && ok {
 		m.current = model
+		m.lastSavedID = last
 	} else if len(models) > 0 {
 		m.current = models[0]
 	}
 	m.start = func(ctx context.Context, model Model) (*child, error) { return startProcess(ctx, c, model) }
-	client := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil},
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	m.probe = func(ctx context.Context, model Model) error {
 		request, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://127.0.0.1:%d%s", c.InternalPort, HealthPath(model)), nil)
 		if err != nil {
 			return err
 		}
-		request.Close = true
 		response, err := client.Do(request)
 		if err != nil {
 			return err
@@ -95,6 +124,26 @@ func managerForModels(c Config, models []Model, last string) *Manager {
 		return nil
 	}
 	return m
+}
+
+// HasModel reports whether alias resolves to a known, still-present model without rescanning ModelsDir.
+func (m *Manager) HasModel(alias string) bool {
+	m.mu.Lock()
+	current := m.current
+	models := m.models
+	mtime := m.modelsDirMtime
+	m.mu.Unlock()
+	if alias == "" || alias == "default" {
+		if current.ID == "" {
+			return false
+		}
+		if !filepath.IsAbs(current.Path) {
+			return dirModTime(m.cfg.ModelsDir).Equal(mtime)
+		}
+		return modelPathPresent(current.Path)
+	}
+	model, ok := FindModel(models, alias)
+	return ok && modelPathPresent(model.Path)
 }
 
 func (m *Manager) acquire(ctx context.Context, wait bool) error {
@@ -176,6 +225,7 @@ func modelConcurrency(model Model) int {
 func (m *Manager) stopModel() error {
 	m.mu.Lock()
 	proc := m.proc
+	onStop := m.onStop
 	m.ready = false
 	m.mu.Unlock()
 	if proc != nil {
@@ -187,6 +237,12 @@ func (m *Manager) stopModel() error {
 			m.proc = nil
 		}
 		m.mu.Unlock()
+	}
+	if m.client != nil {
+		m.client.CloseIdleConnections()
+	}
+	if onStop != nil {
+		onStop()
 	}
 	return nil
 }
@@ -220,7 +276,7 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 		return errors.New("no available model")
 	}
 	timeout := m.cfg.StartupTimeout
-	if model.Type != "gguf" && model.Type != "laya" {
+	if model.Type != "gguf" {
 		timeout = min(timeout, 25*time.Second)
 	}
 	startup, cancel := context.WithTimeout(ctx, timeout)
@@ -246,8 +302,14 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 	for {
 		select {
 		case <-proc.done:
+			if model.Type == "apple" {
+				invalidateFMVerified()
+			}
 			return errors.Join(fmt.Errorf("model exited before readiness: %v", proc.err), m.stopModel())
 		case <-startup.Done():
+			if model.Type == "apple" {
+				invalidateFMVerified()
+			}
 			return errors.Join(startup.Err(), m.stopModel())
 		case <-m.ctx.Done():
 			return errors.Join(ErrStopped, m.stopModel())
@@ -270,9 +332,15 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 			default:
 			}
 			m.ready, m.lastActive = true, time.Now()
+			needSave := m.lastSavedID != model.ID
 			m.mu.Unlock()
-			if err := SaveLastModel(m.cfg.DataDir, model.ID); err != nil {
-				return errors.Join(fmt.Errorf("save last model: %w", err), m.stopModel())
+			if needSave {
+				if err := SaveLastModel(m.cfg.DataDir, model.ID); err != nil {
+					return errors.Join(fmt.Errorf("save last model: %w", err), m.stopModel())
+				}
+				m.mu.Lock()
+				m.lastSavedID = model.ID
+				m.mu.Unlock()
 			}
 			return nil
 		}
@@ -416,9 +484,11 @@ func (m *Manager) Refresh() error {
 	if err != nil {
 		return err
 	}
+	mtime := dirModTime(m.cfg.ModelsDir)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.models = models
+	m.modelsDirMtime = mtime
 	if m.current.ID == "" && len(models) > 0 {
 		m.current = models[0]
 	}

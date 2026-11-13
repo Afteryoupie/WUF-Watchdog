@@ -1,5 +1,11 @@
 # 版本紀錄
 
+## v0.2.2（2026-11-13）
+
+- 完成無 Python 重構：移除 Laya Python 決策服務、8082 連接埠、OMLX／MLX Python 後端與相關介面控制；保留舊啟動參數向後相容忽略，舊 `last_model.json` 指向已移除後端時自動回復可用模型。
+- 強化管理 API 安全：`/api/setup`、`/api/autostart` 及管理路由統一驗證來源（Origin／Host／Sec-Fetch-Site），設定修改限定 `POST`＋JSON，並移除管理端點的萬用 CORS。
+- 改善連線與推論穩定性：ReverseProxy 補上 `GetBody` 支援失效 Keep-Alive 連線安全重試、修正 `fm` 可用性快取失效處理，並防止 Riva 翻譯前綴重複附加。
+
 ## v0.2.1（2026-11-13）
 
 - `app` 啟動時自動為目前使用者註冊 Chrome／Edge 瀏覽器喚醒連接（Native Host），並保留不覆蓋異地註冊的安全檢查。

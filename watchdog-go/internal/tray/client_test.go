@@ -3,13 +3,13 @@ package tray
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
-
-	"wuf-translate/watchdog-go/internal/core"
 )
 
 func TestPresentationPreservesModelIdentityAndActivity(t *testing.T) {
@@ -18,7 +18,7 @@ func TestPresentationPreservesModelIdentityAndActivity(t *testing.T) {
 	if a == b {
 		t.Fatal("compact labels hid quantization identity")
 	}
-	state := &Snapshot{Snapshot: core.Snapshot{Status: "running", IdleTimeout: 180, IdleRemaining: 65, AutoSleepEnabled: true}}
+	state := &Snapshot{Status: "running", IdleTimeout: 180, IdleRemaining: 65, AutoSleepEnabled: true}
 	if IconState(state) != "ready" || Countdown(state, 2*time.Second) != "01:03" {
 		t.Fatal("ready presentation")
 	}
@@ -28,13 +28,34 @@ func TestPresentationPreservesModelIdentityAndActivity(t *testing.T) {
 	}
 	state.Status = "sleeping"
 	state.ActiveRequests = 0
-	state.Decision.Status = "running"
-	state.Decision.ActiveRequests = 1
-	if IconState(state) != "running" {
-		t.Fatal("independent decision activity was hidden")
+	if IconState(state) != "sleeping" {
+		t.Fatal("sleeping presentation")
 	}
 	if IconState(nil) != "offline" {
 		t.Fatal("offline presentation")
+	}
+}
+
+func TestActionSetupPostsJSONBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/api/setup" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Fatalf("unexpected Content-Type: %q", r.Header.Get("Content-Type"))
+		}
+		var payload map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload["action"] != "enable-autostart" {
+			t.Fatalf("unexpected body: %+v", payload)
+		}
+		io.WriteString(w, `{"status":"ok"}`)
+	}))
+	defer server.Close()
+	if err := NewClient(server.URL).Action(context.Background(), "setup", url.Values{"action": {"enable-autostart"}}); err != nil {
+		t.Fatal(err)
 	}
 }
 

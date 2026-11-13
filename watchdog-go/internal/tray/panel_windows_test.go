@@ -37,7 +37,7 @@ func TestNativePanelOpaquePaintingAndStableRefresh(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	c := &controller{client: NewClient("http://127.0.0.1:8080"), updated: time.Now()}
-	c.data = &Snapshot{Snapshot: core.Snapshot{Status: "running", CurrentModel: "Riva-Translate-4B-Instruct-v2-Q4_K_M", IdleTimeout: 180, IdleRemaining: 167, AutoSleepEnabled: true, Models: []core.Model{{ID: "riva"}}}, Decision: core.DecisionSnapshot{Status: "sleeping", Models: []core.Model{{ID: "laya"}}, RuntimeAvailable: true}}
+	c.data = &Snapshot{Status: "running", CurrentModel: "Riva-Translate-4B-Instruct-v2-Q4_K_M", IdleTimeout: 180, IdleRemaining: 167, AutoSleepEnabled: true, Models: []core.Model{{ID: "riva"}}}
 	if err := c.ensurePanel(); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestNativePanelOpaquePaintingAndStableRefresh(t *testing.T) {
 	// Hidden windows discard invalidations. Keep our test widget offscreen and
 	// unactivated so GetUpdateRect observes real native repaint requests.
 	offscreen := int32(-32000)
-	user32.NewProc("MoveWindow").Call(p.hwnd, uintptr(offscreen), uintptr(offscreen), uintptr(p.px(392)), uintptr(p.px(510)), 0)
+	user32.NewProc("MoveWindow").Call(p.hwnd, uintptr(offscreen), uintptr(offscreen), uintptr(p.px(392)), uintptr(p.px(448)), 0)
 	user32.NewProc("ShowWindow").Call(p.hwnd, 4)
 	p.refresh()
 	for _, control := range p.controls {
@@ -65,7 +65,7 @@ func TestNativePanelOpaquePaintingAndStableRefresh(t *testing.T) {
 	}
 	c.data.AutoSleepEnabled = true
 	p.refresh()
-	width, height := p.px(392), p.px(510)
+	width, height := p.px(392), p.px(448)
 	p.roundCorners(width, height)
 	region, _, _ := gdi32.NewProc("CreateRectRgn").Call(0, 0, 0, 0)
 	defer deleteObject.Call(region)

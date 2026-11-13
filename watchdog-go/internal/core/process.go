@@ -9,8 +9,35 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 )
+
+var fmAvailCache struct {
+	mu      sync.Mutex
+	bin     string
+	expires time.Time
+}
+
+func isFMVerified(bin string) bool {
+	fmAvailCache.mu.Lock()
+	defer fmAvailCache.mu.Unlock()
+	return fmAvailCache.bin == bin && time.Now().Before(fmAvailCache.expires)
+}
+
+func markFMVerified(bin string) {
+	fmAvailCache.mu.Lock()
+	fmAvailCache.bin = bin
+	fmAvailCache.expires = time.Now().Add(60 * time.Second)
+	fmAvailCache.mu.Unlock()
+}
+
+func invalidateFMVerified() {
+	fmAvailCache.mu.Lock()
+	fmAvailCache.bin = ""
+	fmAvailCache.expires = time.Time{}
+	fmAvailCache.mu.Unlock()
+}
 
 type child struct {
 	cmd  *exec.Cmd
@@ -55,7 +82,7 @@ func startProcess(ctx context.Context, c Config, model Model) (*child, error) {
 	if err := listener.Close(); err != nil {
 		return nil, err
 	}
-	if model.Type == "apple" {
+	if model.Type == "apple" && !isFMVerified(argv[0]) {
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		check := exec.CommandContext(ctx, argv[0], "available", "--model", "system")
@@ -63,6 +90,7 @@ func startProcess(ctx context.Context, c Config, model Model) (*child, error) {
 		if output, err := check.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("Apple model unavailable: %w: %s", err, output)
 		}
+		markFMVerified(argv[0])
 	}
 	return launch(ctx, c, argv, "", nil)
 }
@@ -80,7 +108,7 @@ func launch(ctx context.Context, c Config, argv []string, dir string, env []stri
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "HF_HUB_OFFLINE=1", "TRANSFORMERS_VERBOSITY=error", "PYTHONWARNINGS=ignore::UserWarning")
+	cmd.Env = append(os.Environ(), "HF_HUB_OFFLINE=1")
 	cmd.Env = append(cmd.Env, env...)
 	cmd.Stdout, cmd.Stderr = log, log
 	configureProcess(cmd)

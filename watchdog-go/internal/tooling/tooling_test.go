@@ -32,7 +32,7 @@ func put(t *testing.T, path, text string) {
 func fixtureRepo(t *testing.T) string {
 	t.Helper()
 	repo := t.TempDir()
-	for _, file := range []string{"watchdog/templates/dashboard.html", "watchdog/assets/guardian.icns", "watchdog/assets/watchdog-vectors.json", "watchdog-go/LICENSE", "watchdog/__init__.py", "watchdog/decision_protocol.py", "watchdog/laya_backend.py"} {
+	for _, file := range []string{"watchdog/templates/dashboard.html", "watchdog/assets/guardian.icns", "watchdog/assets/watchdog-vectors.json", "watchdog-go/LICENSE"} {
 		put(t, filepath.Join(repo, filepath.FromSlash(file)), file)
 	}
 	return repo
@@ -60,14 +60,18 @@ func TestMacPackagePathsAndNoManagementPython(t *testing.T) {
 	if err != nil || info["CFBundleExecutable"] != "app" || info["LSUIElement"] != true || info["CFBundleName"] != "WUF Watchdog" || info["CFBundleDisplayName"] != "WUF Watchdog" || info["CFBundleVersion"] != Version || info["CFBundleShortVersionString"] != Version {
 		t.Fatalf("plist %v %v", info, err)
 	}
-	entries, err := os.ReadDir(filepath.Join(app, "Contents", "Resources", "laya", "watchdog"))
-	if err != nil || len(entries) != 3 {
-		t.Fatalf("Laya files %v %v", entries, err)
+	if _, err := os.Stat(filepath.Join(app, "Contents", "Resources", "laya")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Python/Laya resources must not be packaged, got err=%v", err)
 	}
 	var config launch.Config
 	raw, _ := os.ReadFile(filepath.Join(app, "Contents", "MacOS", "launch.json"))
 	if err := json.Unmarshal(raw, &config); err != nil {
 		t.Fatal(err)
+	}
+	for _, arg := range config.Arguments {
+		if strings.Contains(arg, "laya") {
+			t.Fatalf("legacy --laya argument remained in launch.json: %v", config.Arguments)
+		}
 	}
 	if config.Core != "watchdog" || config.Tray != "tray" {
 		t.Fatal(config)

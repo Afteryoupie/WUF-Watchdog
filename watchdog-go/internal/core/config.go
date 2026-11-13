@@ -12,21 +12,19 @@ import (
 )
 
 type Binaries struct {
-	Llama, K2Llama, Python, Rapid, OMLX, FM, AppleAPI string
+	Llama, K2Llama, FM, AppleAPI string
 }
 
 type Config struct {
-	ModelsDir, DataDir                 string
-	Platform                           string
-	Binaries                           Binaries
-	InternalPort                       int
-	VRAMMiB                            int64
-	StartupTimeout                     time.Duration
-	QueueTimeout                       time.Duration
-	IdleTimeout                        time.Duration
-	ProbeInterval                      time.Duration
-	LayaModelDir, LayaRoot, LayaPython string
-	DecisionPort                       int
+	ModelsDir, DataDir string
+	Platform           string
+	Binaries           Binaries
+	InternalPort       int
+	VRAMMiB            int64
+	StartupTimeout     time.Duration
+	QueueTimeout       time.Duration
+	IdleTimeout        time.Duration
+	ProbeInterval      time.Duration
 }
 
 func DefaultConfig() (Config, error) {
@@ -42,8 +40,7 @@ func DefaultConfig() (Config, error) {
 		ModelsDir: filepath.Join(home, "LLM", "Models"), DataDir: filepath.Join(data, "WUFTranslate"),
 		Platform: runtime.GOOS, InternalPort: 8081, VRAMMiB: 12224,
 		StartupTimeout: 120 * time.Second, QueueTimeout: 130 * time.Second,
-		IdleTimeout: 180 * time.Second, ProbeInterval: 100 * time.Millisecond,
-		DecisionPort: 8082,
+		IdleTimeout: 180 * time.Second, ProbeInterval: 25 * time.Millisecond,
 	}
 	if value := os.Getenv("WUF_MODELS_DIR"); value != "" {
 		c.ModelsDir = value
@@ -53,19 +50,7 @@ func DefaultConfig() (Config, error) {
 	}
 	c.Binaries.Llama, _ = exec.LookPath("llama-server")
 	c.Binaries.K2Llama = os.Getenv("WUF_K2_LLAMA")
-	c.Binaries.Python = os.Getenv("WUF_PYTHON")
-	c.Binaries.Rapid = os.Getenv("WUF_RAPID_MLX")
-	c.Binaries.OMLX = os.Getenv("WUF_OMLX")
 	c.Binaries.AppleAPI = os.Getenv("WUF_APPLE_API")
-	c.LayaModelDir = os.Getenv("WUF_LAYA_MODEL_DIR")
-	if c.LayaModelDir == "" {
-		c.LayaModelDir = filepath.Join(c.ModelsDir, "Laya-Multilingual")
-	}
-	c.LayaRoot = os.Getenv("WUF_LAYA_ROOT")
-	c.LayaPython = os.Getenv("WUF_LAYA_PYTHON")
-	if c.LayaPython == "" {
-		c.LayaPython = c.Binaries.Python
-	}
 	if runtime.GOOS == "darwin" {
 		c.Binaries.FM = "/usr/bin/fm"
 	}

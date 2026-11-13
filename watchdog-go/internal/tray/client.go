@@ -15,10 +15,7 @@ import (
 	"wuf-translate/watchdog-go/internal/setup"
 )
 
-type Snapshot struct {
-	core.Snapshot
-	Decision core.DecisionSnapshot `json:"decision"`
-}
+type Snapshot = core.Snapshot
 
 func Compact(value string) string {
 	characters := []rune(value)
@@ -32,15 +29,11 @@ func IconState(data *Snapshot) string {
 	if data == nil {
 		return "offline"
 	}
-	state := data.Status
-	if state != "running" && state != "starting" {
-		state = data.Decision.Status
-	}
-	if state == "starting" {
+	if data.Status == "starting" {
 		return "starting"
 	}
-	if state == "running" {
-		if data.ActiveRequests > 0 || data.Decision.ActiveRequests > 0 {
+	if data.Status == "running" {
+		if data.ActiveRequests > 0 {
 			return "running"
 		}
 		return "ready"
@@ -74,7 +67,10 @@ type Client struct {
 }
 
 func NewClient(baseURL string) *Client {
-	return &Client{BaseURL: strings.TrimSuffix(baseURL, "/"), HTTP: &http.Client{Transport: &http.Transport{Proxy: nil, DisableKeepAlives: true}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &Client{BaseURL: strings.TrimSuffix(baseURL, "/"), HTTP: &http.Client{
+		Transport:     &http.Transport{Proxy: nil, DisableKeepAlives: false, MaxIdleConnsPerHost: 2, IdleConnTimeout: 30 * time.Second},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}
 }
 
 func (c *Client) Status(ctx context.Context) (*Snapshot, error) {
@@ -106,10 +102,26 @@ func (c *Client) Action(ctx context.Context, path string, query url.Values) erro
 	ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
 	defer cancel()
 	endpoint := c.BaseURL + "/api/" + path
-	if len(query) > 0 {
+	var bodyReader *strings.Reader
+	if path == "setup" && query.Has("action") {
+		payload, err := json.Marshal(map[string]string{"action": query.Get("action")})
+		if err != nil {
+			return err
+		}
+		bodyReader = strings.NewReader(string(payload))
+	} else if len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}
-	request, err := http.NewRequestWithContext(ctx, "POST", endpoint, nil)
+	var request *http.Request
+	var err error
+	if bodyReader != nil {
+		request, err = http.NewRequestWithContext(ctx, "POST", endpoint, bodyReader)
+		if err == nil {
+			request.Header.Set("Content-Type", "application/json")
+		}
+	} else {
+		request, err = http.NewRequestWithContext(ctx, "POST", endpoint, nil)
+	}
 	if err != nil {
 		return err
 	}

@@ -30,7 +30,7 @@ func main() {
 }
 func execute(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: wuf-tool control | package-mac | install-mac | icons | subtitles | decision | fetch-upstream | audit-python")
+		return errors.New("usage: wuf-tool control | package-mac | install-mac | icons | subtitles | fetch-upstream | audit-python")
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	switch args[0] {
@@ -136,26 +136,6 @@ func execute(ctx context.Context, args []string) error {
 			*input = path
 		}
 		return tooling.RunSubtitleDiagnostic(ctx, tooling.SubtitleOptions{Input: *input, Output: *output, BaseURL: *base, Model: *model, Target: *target, Prompt: *prompt, Limit: *limit, Timeout: *timeout})
-	case "decision":
-		endpoint := f.String("endpoint", "http://127.0.0.1:8080/v1/systemone", "explicit decision API endpoint")
-		left := f.String("left", "", "left subtitle fragment")
-		right := f.String("right", "", "right subtitle fragment")
-		keyEnv := f.String("key-env", "", "optional environment variable containing API key")
-		if err := f.Parse(args[1:]); err != nil {
-			return err
-		}
-		key := ""
-		if *keyEnv != "" {
-			key = os.Getenv(*keyEnv)
-			if key == "" {
-				return errors.New("API key environment variable is empty")
-			}
-		}
-		data, err := tooling.DecisionProbe(ctx, *endpoint, key, *left, *right)
-		if err == nil {
-			fmt.Println(string(data))
-		}
-		return err
 	case "fetch-upstream":
 		repo := f.String("repo", "", "absolute repository path")
 		git := f.String("git", "", "absolute Git executable")
@@ -189,7 +169,6 @@ func execute(ctx context.Context, args []string) error {
 			return errors.New("absolute repository path required")
 		}
 		var unexpected []string
-		allowed := map[string]bool{"watchdog/__init__.py": true, "watchdog/decision_protocol.py": true, "watchdog/laya_backend.py": true}
 		err := filepath.WalkDir(*repo, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -209,12 +188,7 @@ func execute(ctx context.Context, args []string) error {
 				if err != nil {
 					return err
 				}
-				relative = filepath.ToSlash(relative)
-				if allowed[relative] {
-					fmt.Println("Laya inference:", relative)
-				} else {
-					unexpected = append(unexpected, relative)
-				}
+				unexpected = append(unexpected, filepath.ToSlash(relative))
 			}
 			return nil
 		})
@@ -224,7 +198,7 @@ func execute(ctx context.Context, args []string) error {
 		if len(unexpected) > 0 {
 			return fmt.Errorf("unexpected Python source files:\n%s", strings.Join(unexpected, "\n"))
 		}
-		fmt.Println("PASS: Python is limited to the three-file Laya inference package.")
+		fmt.Println("PASS: Zero Python source files in repository.")
 		return nil
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])

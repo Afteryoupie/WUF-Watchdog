@@ -38,11 +38,6 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     private var primaryItem: NSMenuItem!
     private var autoItem: NSMenuItem!
     private var modelsItem: NSMenuItem!
-    private var decisionItem: NSMenuItem!
-    private var decisionToggle: NSMenuItem!
-    private var decisionAuto: NSMenuItem!
-    private var decisionInfo: NSMenuItem!
-    private var decisionSnapshot: [String: Any] = [:]
     private var quitItem: NSMenuItem!
     private var refreshItem: NSMenuItem!
     private var autostartItem: NSMenuItem!
@@ -62,6 +57,11 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     private var autoSleepEnabled = true
     private var availableModels: [[String: Any]] = []
     private var isConnected = false
+    private var iconCache: [String: NSImage] = [:]
+    private let moonIcon = NSImage(systemSymbolName: "moon", accessibilityDescription: nil)
+    private let powerIcon = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
+    private var lastIconState = ""
+    private var lastToolTip = ""
 
     init(connect: Bool = true) {
         super.init()
@@ -99,22 +99,6 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         primaryItem = item("啟動模型", "power", #selector(toggleEngine))
         autoItem = item("閒置時自動休眠", "timer", #selector(toggleAutoSleep))
         menu.addItem(.separator())
-        let decisionMenu = NSMenu()
-        decisionMenu.autoenablesItems = false
-        decisionItem = NSMenuItem(title: "決策模型 · Laya multilingual", action: nil, keyEquivalent: "")
-        decisionItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
-        decisionItem.submenu = decisionMenu
-        decisionInfo = NSMenuItem(title: "休眠待命", action: nil, keyEquivalent: "")
-        decisionInfo.isEnabled = false
-        decisionMenu.addItem(decisionInfo)
-        decisionToggle = NSMenuItem(title: "啟動決策模型", action: #selector(toggleDecision), keyEquivalent: "")
-        decisionToggle.target = self
-        decisionMenu.addItem(decisionToggle)
-        decisionAuto = NSMenuItem(title: "閒置 3 分鐘後自動休眠", action: #selector(toggleDecisionAuto), keyEquivalent: "")
-        decisionAuto.target = self
-        decisionMenu.addItem(decisionAuto)
-        menu.addItem(decisionItem)
-        menu.addItem(.separator())
         item("開啟控制台", "rectangle.grid.2x2", #selector(openWebDashboard), key: "d")
         item("複製 API 網址", "doc.on.doc", #selector(copyApiUrl), key: "c")
         autostartItem = item("登入時自動啟動", "bolt.badge.clock", #selector(toggleAutostart))
@@ -126,16 +110,17 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     private func startPolling() {
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            self.refreshPresentation()
+            if self.isMenuOpen || self.currentStatus == "running" {
+                self.refreshPresentation()
+            }
             if ProcessInfo.processInfo.systemUptime >= self.nextPoll {
                 self.nextPoll = ProcessInfo.processInfo.systemUptime + 2
                 self.fetchStatus()
             }
         }
         self.timer = timer
-        // Explicit tracking mode keeps ticking inside an open NSMenu/submenu.
+        // .common already includes .eventTracking so the timer keeps ticking inside an open NSMenu/submenu.
         RunLoop.main.add(timer, forMode: .common)
-        RunLoop.main.add(timer, forMode: .eventTracking)
     }
 
     private func fetchStatus() {
@@ -165,7 +150,6 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
                 self.activeRequests = json["active_requests"] as? Int ?? 0
                 self.autoSleepEnabled = json["auto_sleep_enabled"] as? Bool ?? true
                 self.availableModels = json["models"] as? [[String: Any]] ?? []
-                self.decisionSnapshot = json["decision"] as? [String: Any] ?? [:]
                 if !self.isMenuOpen { self.rebuildModels() }
                 self.refreshPresentation()
             }
@@ -204,7 +188,10 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         }
         if let feedback = feedback { panel.detail.stringValue = feedback }
         primaryItem.title = busy ? "正在處理…" : starting ? "模型載入中…" : running ? "立即休眠" : "啟動模型"
-        primaryItem.image = NSImage(systemSymbolName: running ? "moon" : "power", accessibilityDescription: nil)
+        let nextPrimaryIcon = running ? moonIcon : powerIcon
+        if primaryItem.image !== nextPrimaryIcon {
+            primaryItem.image = nextPrimaryIcon
+        }
         primaryItem.isEnabled = isConnected && !busy && !starting
         autoItem.title = idleTimeout > 0 ? "閒置 \(idleTimeout / 60) 分鐘後自動休眠" : "此模型保持常駐"
         autoItem.state = autoSleepEnabled && idleTimeout > 0 ? .on : .off
@@ -219,18 +206,7 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         autostartItem.state = autostartState == "enabled" ? .on : .off
         autostartItem.isEnabled = isConnected && !busy && (autostartState == "enabled" || autostartState == "disabled")
         quitItem.isEnabled = !busy
-        let decisionStatus = decisionSnapshot["status"] as? String ?? "sleeping"
-        let decisionActive = decisionSnapshot["active_requests"] as? Int ?? 0
-        let hasDecision = !(decisionSnapshot["models"] as? [[String: Any]] ?? []).isEmpty
-        let decisionRunning = decisionStatus == "running"
-        decisionInfo.title = decisionStatus == "starting" ? "載入中…" : decisionRunning ? (decisionActive > 0 ? "處理中" : "準備就緒 · \(String(describing: decisionSnapshot["device"] ?? "local").uppercased())") : "休眠待命"
-        decisionItem.title = "決策模型 · Laya multilingual · " + decisionInfo.title
-        decisionItem.isEnabled = isConnected && hasDecision
-        decisionToggle.title = decisionStatus == "starting" ? "模型載入中…" : decisionRunning ? "決策模型休眠" : "啟動決策模型"
-        decisionToggle.isEnabled = isConnected && hasDecision && !busy && decisionStatus != "starting" && decisionActive == 0 && decisionSnapshot["runtime_available"] as? Bool != false
-        decisionAuto.state = decisionSnapshot["auto_sleep_enabled"] as? Bool == false ? .off : .on
-        decisionAuto.isEnabled = isConnected && hasDecision && !busy
-        updateIcon(status: isConnected ? (running || starting ? currentStatus : decisionStatus) : "disconnected")
+        updateIcon(status: isConnected ? currentStatus : "disconnected")
     }
 
     private func rebuildModels() {
@@ -273,11 +249,15 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
 
     private func guardianIcon(status: String) -> NSImage {
         let awake = status == "running" || status == "starting"
-        let speaking = status == "running" && (activeRequests > 0 || (decisionSnapshot["active_requests"] as? Int ?? 0) > 0)
+        let speaking = status == "running" && activeRequests > 0
         let state = !awake ? "sleeping" : speaking ? "running" : "ready"
+        if let cached = iconCache[state] {
+            return cached
+        }
         guard let contours = iconContours[state], !contours.isEmpty else {
             let fallback = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: "WUF Watchdog") ?? NSImage(size: NSSize(width: 22, height: 22))
             fallback.isTemplate = true
+            iconCache[state] = fallback
             return fallback
         }
         let image = NSImage(size: NSSize(width: 22, height: 22), flipped: false) { _ in
@@ -316,17 +296,27 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
             return true
         }
         image.isTemplate = true
+        iconCache[state] = image
         return image
     }
 
     private func updateIcon(status: String) {
         guard let button = statusItem.button else { return }
-        button.title = ""
-        button.image = guardianIcon(status: status)
-        let labels = ["running": activeRequests > 0 || (decisionSnapshot["active_requests"] as? Int ?? 0) > 0 ? "運行中 · 處理請求" : "準備就緒", "starting": "正在載入", "sleeping": "休眠待命", "disconnected": "尚未連線"]
+        let awake = status == "running" || status == "starting"
+        let speaking = status == "running" && activeRequests > 0
+        let iconState = !awake ? "sleeping" : speaking ? "running" : "ready"
+        if iconState != lastIconState {
+            lastIconState = iconState
+            button.title = ""
+            button.image = guardianIcon(status: status)
+        }
+        let labels = ["running": speaking ? "運行中 · 處理請求" : "準備就緒", "starting": "正在載入", "sleeping": "休眠待命", "disconnected": "尚未連線"]
         let label = "WUF Watchdog · \(labels[status] ?? "狀態未知") · \(currentModel)"
-        button.toolTip = label
-        button.setAccessibilityLabel(label)
+        if label != lastToolTip {
+            lastToolTip = label
+            button.toolTip = label
+            button.setAccessibilityLabel(label)
+        }
     }
 
 
@@ -354,7 +344,7 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         }.resume()
     }
 
-    private func perform(_ path: String, query: [URLQueryItem] = [], completion: (() -> Void)? = nil) {
+    private func perform(_ path: String, query: [URLQueryItem] = [], jsonBody: [String: Any]? = nil, completion: (() -> Void)? = nil) {
         guard !busy else { return }
         busy = true; feedback = nil
         refreshPresentation()
@@ -362,6 +352,10 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
         if !query.isEmpty { components.queryItems = query }
         var request = URLRequest(url: components.url!)
         request.httpMethod = "POST"
+        if let jsonBody = jsonBody, let payload = try? JSONSerialization.data(withJSONObject: jsonBody) {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = payload
+        }
         request.timeoutInterval = 180
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             RunLoop.main.perform(inModes: [.default, .eventTracking]) {
@@ -385,11 +379,9 @@ class WUFMenuBarController: NSObject, NSMenuDelegate {
     }
     @objc private func toggleEngine() { perform(currentStatus == "running" ? "sleep" : "wake") }
     @objc private func toggleAutoSleep() { perform("toggle_auto_sleep") }
-    @objc private func toggleDecision() { perform(decisionSnapshot["status"] as? String == "running" ? "decision/sleep" : "decision/wake") }
-    @objc private func toggleDecisionAuto() { perform("decision/toggle_auto_sleep") }
     @objc private func toggleAutostart() {
         let act = autostartState == "enabled" ? "disable-autostart" : "enable-autostart"
-        perform("setup", query: [URLQueryItem(name: "action", value: act)]) { [weak self] in
+        perform("setup", jsonBody: ["action": act]) { [weak self] in
             self?.fetchSetup()
         }
     }

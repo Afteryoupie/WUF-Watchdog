@@ -105,8 +105,28 @@ func LoadConfig(path string) (Config, error) {
 		return filepath.Join(root, value)
 	}
 	c.Core, c.Tray = resolve(c.Core), resolve(c.Tray)
+	legacyFlags := map[string]bool{
+		"--laya-root": true, "--laya-model": true, "--laya-python": true,
+		"--python": true, "--rapid-mlx": true, "--omlx": true, "--decision-port": true,
+	}
+	filterLegacy := func(args []string) []string {
+		out := make([]string, 0, len(args))
+		for i := 0; i < len(args); i++ {
+			name, _, joined := strings.Cut(args[i], "=")
+			if legacyFlags[name] {
+				if !joined && i+1 < len(args) {
+					i++
+				}
+				continue
+			}
+			out = append(out, args[i])
+		}
+		return out
+	}
+	c.Arguments = filterLegacy(c.Arguments)
+	c.TrayArguments = filterLegacy(c.TrayArguments)
 	// Only documented path flags are bundle-relative; other arguments remain literal.
-	pathFlags := map[string]bool{"--dashboard": true, "--laya-root": true, "--models-dir": true, "--laya-model": true, "--llama": true, "--k2-llama": true, "--python": true, "--laya-python": true, "--rapid-mlx": true, "--omlx": true, "--fm": true, "--apple-api": true, "--config": true, "--assets": true, "--swift": true}
+	pathFlags := map[string]bool{"--dashboard": true, "--models-dir": true, "--llama": true, "--k2-llama": true, "--fm": true, "--apple-api": true, "--config": true, "--assets": true, "--swift": true}
 	for _, args := range [][]string{c.Arguments, c.TrayArguments} {
 		for i := 0; i < len(args); i++ {
 			name, value, joined := strings.Cut(args[i], "=")
@@ -267,7 +287,7 @@ func Start(ctx context.Context, c Config) Reply {
 				}
 			}
 		}()
-		ticker := time.NewTicker(50 * time.Millisecond)
+		ticker := time.NewTicker(15 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			health, err = Probe(ctx, c.BaseURL)

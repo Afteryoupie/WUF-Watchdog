@@ -22,7 +22,7 @@ import (
 func TestBundlePathsResolveAfterMoving(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "launch.json")
-	data, _ := json.Marshal(Config{Core: "watchdog.exe", Tray: "tray.exe", Arguments: []string{"--dashboard=resources/dashboard.html", "--laya-root", "resources/laya"}, TrayArguments: []string{"--config", "launch.json", "--assets", "resources/icons"}})
+	data, _ := json.Marshal(Config{Core: "watchdog.exe", Tray: "tray.exe", Arguments: []string{"--dashboard=resources/dashboard.html", "--laya-root", "resources/laya", "--laya-python=/old/python", "--python", "/old/python", "--decision-port=8082"}, TrayArguments: []string{"--config", "launch.json", "--assets", "resources/icons"}})
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +30,8 @@ func TestBundlePathsResolveAfterMoving(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Core != filepath.Join(root, "watchdog.exe") || c.Arguments[0] != "--dashboard="+filepath.Join(root, "resources", "dashboard.html") || c.Arguments[2] != filepath.Join(root, "resources", "laya") || c.TrayArguments[1] != path {
-		t.Fatalf("bundle paths were not resolved: %+v", c)
+	if c.Core != filepath.Join(root, "watchdog.exe") || len(c.Arguments) != 1 || c.Arguments[0] != "--dashboard="+filepath.Join(root, "resources", "dashboard.html") || c.TrayArguments[1] != path {
+		t.Fatalf("bundle paths or legacy flag stripping failed: %+v", c)
 	}
 }
 

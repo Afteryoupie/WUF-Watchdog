@@ -114,7 +114,7 @@ func (c *controller) ensurePanel() error {
 	}
 	// An owned popup stays out of the taskbar without WS_EX_TOOLWINDOW, which
 	// also lets accessibility tools discover its controls.
-	hwnd, _, err := createWindow.Call(0x8, pointer(name), pointer(wide("WUF Watchdog")), 0x80000000|0x2000000, 0, 0, 392, 510, c.hwnd, 0, instance, 0)
+	hwnd, _, err := createWindow.Call(0x8, pointer(name), pointer(wide("WUF Watchdog")), 0x80000000|0x2000000, 0, 0, 392, 448, c.hwnd, 0, instance, 0)
 	if hwnd == 0 {
 		return fmt.Errorf("create panel: %w", err)
 	}
@@ -130,7 +130,7 @@ func (c *controller) ensurePanel() error {
 	for _, spec := range []struct {
 		id         uint32
 		x, y, w, h int32
-	}{{1, 24, 17, 218, 30}, {2, 240, 20, 128, 25}, {3, 24, 53, 344, 47}, {4, 24, 103, 344, 24}, {100, 12, 150, 368, 49}, {20, 12, 208, 368, 40}, {21, 12, 248, 368, 40}, {130, 12, 301, 368, 49}, {40, 12, 365, 368, 38}, {41, 12, 403, 368, 38}, {50, 12, 459, 368, 38}} {
+	}{{1, 24, 17, 218, 30}, {2, 240, 20, 128, 25}, {3, 24, 53, 344, 47}, {4, 24, 103, 344, 24}, {100, 12, 150, 368, 49}, {20, 12, 208, 368, 40}, {21, 12, 248, 368, 40}, {40, 12, 303, 368, 38}, {41, 12, 341, 368, 38}, {50, 12, 397, 368, 38}} {
 		kind := wide("BUTTON")
 		style := uintptr(0x5001000b)
 		if spec.id < 10 {
@@ -207,7 +207,7 @@ func (c *controller) showPanel() {
 	}
 	p.dpi = dpi
 	p.createFonts()
-	width, height := p.px(392), p.px(510)
+	width, height := p.px(392), p.px(448)
 	x, y := panelPosition(p.icon, info.Work, width, height, p.px(8))
 	for _, control := range p.controls {
 		user32.NewProc("MoveWindow").Call(control.hwnd, uintptr(p.px(control.x)), uintptr(p.px(control.y)), uintptr(p.px(control.w)), uintptr(p.px(control.h)), 1)
@@ -252,14 +252,14 @@ func (p *nativePanel) refresh() {
 	previous := p.view
 	p.view = panelState(data, time.Since(updated), busy, feedback)
 	title := c.title()
-	labels := map[uint32]string{1: title, 2: p.view.status, 3: p.view.countdown, 4: p.view.detail, 100: p.view.model, 20: p.view.primary, 21: p.view.auto, 130: p.view.decision, 40: "開啟控制台\tCtrl+D", 41: "複製 API 網址\tCtrl+C", 50: "退出 WUF Watchdog\tCtrl+Q"}
+	labels := map[uint32]string{1: title, 2: p.view.status, 3: p.view.countdown, 4: p.view.detail, 100: p.view.model, 20: p.view.primary, 21: p.view.auto, 40: "開啟控制台\tCtrl+D", 41: "複製 API 網址\tCtrl+C", 50: "退出 WUF Watchdog\tCtrl+Q"}
 	for id, label := range labels {
 		if p.controls[id].text != label {
 			p.controls[id].text = label
 			user32.NewProc("SetWindowTextW").Call(p.controls[id].hwnd, pointer(wide(label)))
 		}
 	}
-	for id, on := range map[uint32]bool{100: p.view.modelsEnabled, 20: p.view.primaryEnabled, 21: p.view.autoEnabled, 130: p.view.decisionEnabled} {
+	for id, on := range map[uint32]bool{100: p.view.modelsEnabled, 20: p.view.primaryEnabled, 21: p.view.autoEnabled} {
 		if p.controls[id].enabled == on {
 			continue
 		}
@@ -331,7 +331,7 @@ func (p *nativePanel) background(dc uintptr, area rect) {
 	paintColor(dc, rect{0, area.Bottom - 1, area.Right, area.Bottom}, border)
 	paintColor(dc, rect{0, 0, 1, area.Bottom}, border)
 	paintColor(dc, rect{area.Right - 1, 0, area.Right, area.Bottom}, border)
-	for _, y := range []int32{201, 294, 356, 449} {
+	for _, y := range []int32{201, 294, 387} {
 		paintColor(dc, rect{p.px(24), p.px(y), area.Right - p.px(24), p.px(y) + 1}, color(39, 42, 47))
 	}
 	track := rect{p.px(24), p.px(135), area.Right - p.px(24), p.px(142)}
@@ -394,15 +394,8 @@ func (p *nativePanel) drawControl(item *drawItem) {
 			user32.NewProc("DrawFocusRect").Call(item.DC, pointer(&focus))
 		}
 	}
-	if item.ID == 100 || item.ID == 130 {
+	if item.ID == 100 {
 		caption, label := "目前模型", control.text
-		if item.ID == 130 {
-			caption = "決策模型"
-			label = strings.TrimPrefix(label, "決策模型 · ")
-			if name, state, ok := strings.Cut(label, " · "); ok {
-				label, caption = name, caption+" · "+state
-			}
-		}
 		chevron := area
 		chevron.Left = chevron.Right - p.px(16)
 		p.text(item.DC, "\ue76c", chevron, "icon", color(142, 151, 165), 0x4|2)
@@ -447,9 +440,6 @@ func (p *nativePanel) command(id uint32) {
 	switch id {
 	case 100:
 		p.models()
-		return
-	case 130:
-		p.decisions()
 		return
 	case 40:
 		shellExecute.Call(p.hwnd, pointer(wide("open")), pointer(wide(c.client.BaseURL+"/status")), 0, 0, 1)
@@ -512,42 +502,6 @@ func (p *nativePanel) models() {
 		c.action(menuAction{"switch", url.Values{"model": {model}}})
 		p.refresh()
 	}
-}
-func (p *nativePanel) decisions() {
-	c := p.owner
-	c.mu.Lock()
-	data, busy := c.data, c.busy
-	c.mu.Unlock()
-	if data == nil {
-		return
-	}
-	menu, _, _ := createPopup.Call()
-	if menu == 0 {
-		return
-	}
-	status := "休眠待命"
-	path, label := "decision/wake", "啟動決策模型"
-	if data.Decision.Status == "running" {
-		status = "準備就緒 · " + data.Decision.Device
-		path, label = "decision/sleep", "決策模型休眠"
-	}
-	if data.Decision.Status == "starting" {
-		status = "載入中…"
-	}
-	if data.Decision.ActiveRequests > 0 {
-		status = "處理中"
-	}
-	c.append(menu, 1, status, false, false)
-	separator(menu)
-	c.append(menu, 30, label, !busy && data.Decision.RuntimeAvailable && data.Decision.Status != "starting" && data.Decision.ActiveRequests == 0, false)
-	c.append(menu, 31, "閒置 3 分鐘後自動休眠", !busy, data.Decision.AutoSleepEnabled)
-	switch p.choose(menu, 130) {
-	case 30:
-		c.action(menuAction{path, nil})
-	case 31:
-		c.action(menuAction{"decision/toggle_auto_sleep", nil})
-	}
-	p.refresh()
 }
 func (p *nativePanel) windowProc(hwnd uintptr, id uint32, wparam, lparam uintptr) uintptr {
 	switch id {

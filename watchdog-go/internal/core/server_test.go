@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -31,20 +32,9 @@ func freePort(t *testing.T) int {
 	return port
 }
 
-func testAPI(t *testing.T, m *Manager, d *Decision) (*API, string) {
+func testAPI(t *testing.T, m *Manager) (*API, string) {
 	t.Helper()
-	if d == nil {
-		c := m.cfg
-		c.DecisionPort = freePort(t)
-		c.LayaModelDir = filepath.Join(t.TempDir(), "absent")
-		c.LayaPython = ""
-		var err error
-		d, err = NewDecision(c)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	a := NewAPI(m, d, `<html><script>const s=__INITIAL_STATE_JSON__;</script>127.0.0.1:__PUBLIC_PORT__/v1</html>`, 8080)
+	a := NewAPI(m, `<html><script>const s=__INITIAL_STATE_JSON__;</script>127.0.0.1:__PUBLIC_PORT__/v1</html>`, 8080)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +138,7 @@ func TestHTTPStreamingHalfCloseQueuesNextModel(t *testing.T) {
 	m := testManager(t)
 	m.cfg.InternalPort = upstream.Listener.Addr().(*net.TCPAddr).Port
 	writeFile(t, filepath.Join(m.cfg.ModelsDir, "other.gguf"))
-	_, address := testAPI(t, m, nil)
+	_, address := testAPI(t, m)
 	_, response := rawPost(t, address, `{"model":"default","stream":true}`, true)
 	defer response.Body.Close()
 	lines := bufio.NewReader(response.Body)
@@ -212,7 +202,7 @@ func TestHTTPResetCancelsUpstreamAndReleasesGate(t *testing.T) {
 	t.Cleanup(upstream.Close)
 	m := testManager(t)
 	m.cfg.InternalPort = upstream.Listener.Addr().(*net.TCPAddr).Port
-	_, address := testAPI(t, m, nil)
+	_, address := testAPI(t, m)
 	conn, response := rawPost(t, address, `{"model":"default","stream":true}`, false)
 	line, err := bufio.NewReader(response.Body).ReadString('\n')
 	if err != nil || line != "data: first\n" {
@@ -247,7 +237,7 @@ func TestHTTPPayloadAdaptationAndErrors(t *testing.T) {
 	m := testManager(t)
 	m.cfg.InternalPort = upstream.Listener.Addr().(*net.TCPAddr).Port
 	writeFile(t, filepath.Join(m.cfg.ModelsDir, "Riva-Translate-test.gguf"))
-	_, address := testAPI(t, m, nil)
+	_, address := testAPI(t, m)
 	code, payload := readJSON(t, "POST", address+"/v1/chat/completions", `{"model":"Riva-Translate-test","wuf_target_language":"Traditional Chinese","messages":[{"role":"user","content":"Hello"}]}`)
 	if code != 429 || payload["error"].(map[string]any)["message"] != "rate limited" {
 		t.Fatal(code, payload)
@@ -268,70 +258,87 @@ func TestHTTPPayloadAdaptationAndErrors(t *testing.T) {
 	}
 }
 
-func TestDecisionRunsIndependentlyAndChecksStartupIdentity(t *testing.T) {
-	var healthy atomic.Bool
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/health" {
-			token := "wrong"
-			if healthy.Load() {
-				token = "owned-token"
-			}
-			fmt.Fprintf(w, `{"startup_token":%q,"model":"laya-multilingual","device":"cpu"}`, token)
-		} else {
-			io.WriteString(w, `{"answers":{"q":{"type":"noul","noul":0.9}}}`)
-		}
-	}))
-	t.Cleanup(upstream.Close)
-	m := testManager(t)
-	c := m.cfg
-	c.DecisionPort = upstream.Listener.Addr().(*net.TCPAddr).Port
-	c.LayaPython = ""
-	c.LayaModelDir = filepath.Join(t.TempDir(), "missing")
-	d, err := NewDecision(c)
-	if err != nil {
-		t.Fatal(err)
-	}
-	d.manager.current = Model{ID: DecisionModelID, Name: "Laya multilingual", Path: "/fixture/laya", Type: "laya", IdleTimeout: 180}
-	d.manager.start = func(context.Context, Model) (*child, error) {
-		d.mu.Lock()
-		d.token = "owned-token"
-		d.mu.Unlock()
-		return helper(t, false), nil
-	}
-	if err := d.Wake(context.Background()); !errors.Is(err, ErrBackendIdentity) {
-		t.Fatal("unrelated backend accepted", err)
-	}
-	if d.manager.Snapshot().Status != "sleeping" {
-		t.Fatal("failed identity left a running child")
-	}
-	healthy.Store(true)
-	_, address := testAPI(t, m, d)
-	if err := m.acquire(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	defer m.release()
-	code, body := readJSON(t, "POST", address+"/v1/systemone", `{"state":{},"questions":{"q":{"type":"noul","instructions":"Question"}}}`)
-	if code != 200 || body["answers"] == nil {
-		t.Fatal(code, body)
-	}
-	if m.Snapshot().Status != "sleeping" {
-		t.Fatal("decision woke translation model")
-	}
-	if d.Snapshot().Device != "cpu" {
-		t.Fatal("decision health was not recorded")
-	}
-}
-
 func TestSetupEndpoint(t *testing.T) {
 	m := testManager(t)
-	_, address := testAPI(t, m, nil)
+	_, address := testAPI(t, m)
 	code, body := readJSON(t, "GET", address+"/api/setup", "")
 	if code != 200 || body["platform"] == "" {
 		t.Fatalf("GET /api/setup = (%d, %v)", code, body)
 	}
-	code, body = readJSON(t, "POST", address+"/api/setup?action=unknown", "")
+	code, _ = readJSON(t, "GET", address+"/api/setup?action=enable-autostart", "")
+	if code != 405 {
+		t.Fatalf("GET /api/setup?action=enable-autostart = %d, want 405", code)
+	}
+	code, body = readJSON(t, "POST", address+"/api/setup", `{"action":"unknown"}`)
 	if code != 400 || body["status"] != "error" {
-		t.Fatalf("POST /api/setup?action=unknown = (%d, %v)", code, body)
+		t.Fatalf("POST /api/setup unknown = (%d, %v)", code, body)
+	}
+}
+
+type failingWriteConn struct {
+	net.Conn
+	fail *atomic.Bool
+}
+
+func (c *failingWriteConn) Write(p []byte) (int, error) {
+	if c.fail.CompareAndSwap(true, false) {
+		return 0, syscall.EPIPE
+	}
+	return c.Conn.Write(p)
+}
+
+func TestHTTPReverseProxyRetriesStaleKeepAliveOnPost(t *testing.T) {
+	var upstreamCalls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("upstream decode failed: %v", err)
+			w.WriteHeader(400)
+			return
+		}
+		if payload["messages"] == nil {
+			t.Errorf("missing messages in replayed request: %#v", payload)
+		}
+		upstreamCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"ok":true}`)
+	}))
+	t.Cleanup(upstream.Close)
+
+	m := testManager(t)
+	m.cfg.InternalPort = upstream.Listener.Addr().(*net.TCPAddr).Port
+	api, address := testAPI(t, m)
+
+	var dials atomic.Int32
+	var failNextWrite atomic.Bool
+	baseDial := api.transport.DialContext
+	api.transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := baseDial(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		if dials.Add(1) == 1 {
+			return &failingWriteConn{Conn: conn, fail: &failNextWrite}, nil
+		}
+		return conn, nil
+	}
+
+	reqBody := `{"model":"default","messages":[{"role":"user","content":"Hello"}]}`
+	code, resp := readJSON(t, "POST", address+"/v1/chat/completions", reqBody)
+	if code != 200 || resp["ok"] != true {
+		t.Fatalf("first request = (%d, %v)", code, resp)
+	}
+
+	// Simulate the upstream closing an idle keep-alive socket just as the second POST writes.
+	failNextWrite.Store(true)
+	code, resp = readJSON(t, "POST", address+"/v1/chat/completions", reqBody)
+	if code != 200 || resp["ok"] != true {
+		t.Fatalf("second request after EPIPE on pooled conn = (%d, %v)", code, resp)
+	}
+	if dials.Load() != 2 {
+		t.Fatalf("expected second request to dial a fresh connection; dials=%d", dials.Load())
+	}
+	if upstreamCalls.Load() != 2 {
+		t.Fatalf("expected upstream to handle 2 requests; calls=%d", upstreamCalls.Load())
 	}
 }

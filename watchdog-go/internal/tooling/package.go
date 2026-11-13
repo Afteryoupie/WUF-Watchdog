@@ -19,7 +19,7 @@ import (
 	"wuf-translate/watchdog-go/internal/launch"
 )
 
-const Version = "0.2.1"
+const Version = "0.2.2"
 
 const LoginLabel = "local.wuf.translate.watchdog"
 
@@ -107,7 +107,7 @@ func PopulateMac(repo, app string) error {
 	}
 	macos := filepath.Join(app, "Contents", "MacOS")
 	resources := filepath.Join(app, "Contents", "Resources")
-	for _, dir := range []string{macos, resources, filepath.Join(resources, "laya", "watchdog")} {
+	for _, dir := range []string{macos, resources} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
@@ -116,15 +116,12 @@ func PopulateMac(repo, app string) error {
 		"watchdog/templates/dashboard.html": "dashboard.html", "watchdog/assets/guardian.icns": "guardian.icns", "watchdog-go/LICENSE": "LICENSE",
 		"watchdog/assets/watchdog-vectors.json": "watchdog-vectors.json",
 	}
-	for _, name := range []string{"__init__.py", "decision_protocol.py", "laya_backend.py"} {
-		files["watchdog/"+name] = "laya/watchdog/" + name
-	}
 	for source, target := range files {
 		if err := copyFile(filepath.Join(repo, filepath.FromSlash(source)), filepath.Join(resources, filepath.FromSlash(target))); err != nil {
 			return err
 		}
 	}
-	config := launch.Config{Core: "watchdog", Tray: "tray", BaseURL: "http://127.0.0.1:8080", Arguments: []string{"--dashboard", "../Resources/dashboard.html", "--laya-root", "../Resources/laya"}, TrayArguments: []string{"--config", "launch.json", "--swift", "../Resources/WUFMenuBar"}}
+	config := launch.Config{Core: "watchdog", Tray: "tray", BaseURL: "http://127.0.0.1:8080", Arguments: []string{"--dashboard", "../Resources/dashboard.html"}, TrayArguments: []string{"--config", "launch.json", "--swift", "../Resources/WUFMenuBar"}}
 	data, _ := json.MarshalIndent(config, "", "  ")
 	if err := writeNew(filepath.Join(macos, "launch.json"), data); err != nil {
 		return err
@@ -190,7 +187,7 @@ func BuildMac(repo, app, goExe, swiftc string, layoutOnly bool) error {
 	if err := copyFile(goLicense, filepath.Join(resources, "GO-LICENSE.txt")); err != nil {
 		return err
 	}
-	if err := writeNew(filepath.Join(resources, "NOTICE.txt"), []byte("First-party code: Apache-2.0. Go runtime: BSD-3-Clause. Models and inference runtimes supplied separately. Python is used only by the isolated Laya backend.\n")); err != nil {
+	if err := writeNew(filepath.Join(resources, "NOTICE.txt"), []byte("First-party code: Apache-2.0. Go runtime: BSD-3-Clause. Models and inference runtimes supplied separately.\n")); err != nil {
 		return err
 	}
 	return run("/usr/bin/codesign", repo, nil, "--force", "--deep", "--sign", "-", app)
