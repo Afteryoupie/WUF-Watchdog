@@ -32,7 +32,7 @@ jobs:
           go -C watchdog-go test ./...
           go -C watchdog-go vet ./...
 
-      - name: Build Windows amd64 package
+      - name: Build Windows x86_64 package
         shell: pwsh
         run: |
           $goExe = (Get-Command go).Source
@@ -42,7 +42,7 @@ jobs:
 
           & "$PWD\windows\build-wuf.ps1" -GoExecutable $goExe -OutputDirectory $outDir
 
-          $zipPath = Join-Path $zipDir 'WUF-Watchdog-dev-latest-windows-amd64.zip'
+          $zipPath = Join-Path $zipDir 'WUF-Watchdog-dev-latest-windows-x86_64.zip'
           Compress-Archive -Path "$outDir\*" -DestinationPath $zipPath -Force
           if (-not (Test-Path -LiteralPath $zipPath)) {
             throw "Missing ZIP: $zipPath"
@@ -51,8 +51,8 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v7
         with:
-          name: wuf-watchdog-windows-amd64
-          path: ${{ runner.temp }}/dist/WUF-Watchdog-dev-latest-windows-amd64.zip
+          name: wuf-watchdog-windows-x86_64
+          path: ${{ runner.temp }}/dist/WUF-Watchdog-dev-latest-windows-x86_64.zip
           if-no-files-found: error
 
   build-macos:
@@ -118,7 +118,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: dev-latest
-          WIN_ASSET: dist/WUF-Watchdog-dev-latest-windows-amd64.zip
+          WIN_ASSET: dist/WUF-Watchdog-dev-latest-windows-x86_64.zip
           MAC_ASSET: dist/WUF-Watchdog-dev-latest-macos-arm64.zip
         run: |
           test -f "$WIN_ASSET"
@@ -137,7 +137,7 @@ jobs:
           - **建置時間**：${BUILD_TIME}
 
           ### 下載對應檔案
-          - **Windows (x64)**：\`WUF-Watchdog-dev-latest-windows-amd64.zip\`（解壓到固定資料夾，例如 \`C:\\WUF\\Watchdog\`，依 README 設定 \`launch.json\` 後執行 \`app.exe\`）
+          - **Windows (x86_64)**：\`WUF-Watchdog-dev-latest-windows-x86_64.zip\`（適用於 Intel／AMD 64 位元 Windows，解壓到固定資料夾，例如 \`C:\\WUF\\Watchdog\`，依 README 設定 \`launch.json\` 後執行 \`app.exe\`）
           - **macOS (Apple Silicon arm64)**：\`WUF-Watchdog-dev-latest-macos-arm64.zip\`（解壓後將 \`WUF Watchdog.app\` 移入 \`~/Applications\`；此版本為 ad-hoc 簽署，首次開啟需依系統提示於「隱私權與安全性」允許執行）
           EOF
 

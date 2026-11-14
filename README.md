@@ -62,7 +62,7 @@ C:\WUF\Models\Qwen3-0.6B-Q8_0.gguf
 
 ### A. 準備程式套件與模型執行工具
 
-1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.2-windows-amd64.zip`**（或最新版的 `windows-amd64` 套件），解壓縮至 `C:\WUF\Watchdog`。不要下載 Source code ZIP。維護者可依[建置文件](docs/BUILD.md)自行製作套件。
+1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.2-windows-amd64.zip`**（或最新版的 `windows-x86_64` 套件），解壓縮至 `C:\WUF\Watchdog`。不要下載 Source code ZIP。維護者可依[建置文件](docs/BUILD.md)自行製作套件。
 2. 確認 `C:\WUF\Watchdog` 直接包含 `app.exe`、`watchdog.exe`、`tray.exe`、`native-host.exe`、`wuf-tool.exe`、`launch.json`、`install-wuf.ps1` 及 `resources` 資料夾。不要只複製單一 EXE。
 3. 到 [llama.cpp 官方 Releases](https://github.com/ggml-org/llama.cpp/releases)，展開有程式附件的版本之 **Assets**，找名稱包含 **`bin-win-cpu-x64.zip`** 的附件。此處先使用 CPU 版確認流程；不要下載 Source code 或只有 `cudart` 的附件。若最新版本只有標記檔，往下找有二進位套件的版本。
 4. 將 llama.cpp 的 ZIP 完整解壓縮至 **`C:\WUF\llama.cpp`**，確認其中有 **`llama-server.exe`**。保留同包的 DLL 等檔案，不要只抽出 EXE。
@@ -234,7 +234,7 @@ sudo /usr/bin/fm license
 
 | 情況 | 處理方式 |
 | --- | --- |
-| Releases 找不到對應平台附件 | 確認是否展開該版本的 **Assets**，並選擇 `macos-arm64` 或 `windows-amd64` 壓縮檔；Source code ZIP 不能直接執行。其他架構需由開發者依建置文件製作 |
+| Releases 找不到對應平台附件 | 確認是否展開該版本的 **Assets**，並選擇 `macos-arm64` 或 `windows-x86_64`（`v0.2.2` 舊版為 `windows-amd64`）壓縮檔；Source code ZIP 不能直接執行。其他架構需由開發者依建置文件製作 |
 | Windows 說缺少 DLL | 將 llama.cpp 整包解壓縮，保留 EXE 旁的 DLL；不要只複製單一 EXE |
 | macOS 找不到 `/usr/bin/fm` | 本頁預設的 Apple 流程需要 macOS 27；有 Apple Intelligence 不代表一定有這個工具 |
 | Apple 模型不可用 | 執行 `/usr/bin/fm available --model system`，依提示檢查 Apple Intelligence 下載狀態、語言／地區及工具條款 |
