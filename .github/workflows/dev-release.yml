@@ -1,0 +1,152 @@
+name: Build and Update Dev Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Run Go tests and vet
+        shell: pwsh
+        run: |
+          go -C watchdog-go test ./...
+          go -C watchdog-go vet ./...
+
+      - name: Build Windows amd64 package
+        shell: pwsh
+        run: |
+          $goExe = (Get-Command go).Source
+          $outDir = Join-Path $env:RUNNER_TEMP 'wuf-watchdog-win'
+          $zipDir = Join-Path $env:RUNNER_TEMP 'dist'
+          New-Item -ItemType Directory -Path $zipDir -Force | Out-Null
+
+          & "$PWD\windows\build-wuf.ps1" -GoExecutable $goExe -OutputDirectory $outDir
+
+          $zipPath = Join-Path $zipDir 'WUF-Watchdog-dev-latest-windows-amd64.zip'
+          Compress-Archive -Path "$outDir\*" -DestinationPath $zipPath -Force
+          if (-not (Test-Path -LiteralPath $zipPath)) {
+            throw "Missing ZIP: $zipPath"
+          }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wuf-watchdog-windows-amd64
+          path: ${{ runner.temp }}/dist/WUF-Watchdog-dev-latest-windows-amd64.zip
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Run Go tests and vet
+        run: |
+          go -C watchdog-go test ./...
+          go -C watchdog-go vet ./...
+
+      - name: Build macOS arm64 app bundle
+        env:
+          GOARCH: arm64
+        run: |
+          test "$(uname -m)" = "arm64"
+          GO_EXE="$(command -v go)"
+          OUT_PARENT="$RUNNER_TEMP/out-mac"
+          APP_PATH="$OUT_PARENT/WUF Watchdog.app"
+          mkdir -p "$OUT_PARENT" "$RUNNER_TEMP/dist"
+
+          go -C watchdog-go run ./cmd/wuf-tool package-mac \
+            --repo "$PWD" \
+            --output "$APP_PATH" \
+            --go "$GO_EXE" \
+            --swiftc /usr/bin/swiftc
+
+          /usr/bin/codesign --verify --deep --strict "$APP_PATH"
+          (cd "$OUT_PARENT" && zip -r -y -q "$RUNNER_TEMP/dist/WUF-Watchdog-dev-latest-macos-arm64.zip" "WUF Watchdog.app")
+          test -f "$RUNNER_TEMP/dist/WUF-Watchdog-dev-latest-macos-arm64.zip"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wuf-watchdog-macos-arm64
+          path: ${{ runner.temp }}/dist/WUF-Watchdog-dev-latest-macos-arm64.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download built platform ZIPs
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Update rolling dev-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: dev-latest
+          WIN_ASSET: dist/WUF-Watchdog-dev-latest-windows-amd64.zip
+          MAC_ASSET: dist/WUF-Watchdog-dev-latest-macos-arm64.zip
+        run: |
+          test -f "$WIN_ASSET"
+          test -f "$MAC_ASSET"
+
+          PKG_VERSION="$(sed -n 's/^const Version = "\([^"]*\)".*/\1/p' watchdog-go/internal/tooling/package.go)"
+          PKG_VERSION="${PKG_VERSION:-dev}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_TIME="$(TZ='Asia/Taipei' date '+%Y-%m-%d %H:%M:%S (UTC+8)')"
+
+          NOTES_FILE="$(mktemp)"
+          cat > "$NOTES_FILE" <<EOF
+          自動從 \`main\` 分支最新進度建置的雙平台開發測試版（Pre-release），正式版本請下載標記為 **Latest** 的穩定版。
+
+          - **建置基準**：\`v${PKG_VERSION}\` @ [\`${SHORT_SHA}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
+          - **建置時間**：${BUILD_TIME}
+
+          ### 下載對應檔案
+          - **Windows (x64)**：\`WUF-Watchdog-dev-latest-windows-amd64.zip\`（解壓到固定資料夾，例如 \`C:\\WUF\\Watchdog\`，依 README 設定 \`launch.json\` 後執行 \`app.exe\`）
+          - **macOS (Apple Silicon arm64)**：\`WUF-Watchdog-dev-latest-macos-arm64.zip\`（解壓後將 \`WUF Watchdog.app\` 移入 \`~/Applications\`；此版本為 ad-hoc 簽署，首次開啟需依系統提示於「隱私權與安全性」允許執行）
+          EOF
+
+          # Remove previous rolling release and tag after both platform builds succeed
+          gh release delete "$TAG" --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" >/dev/null 2>&1 || true
+
+          gh release create "$TAG" "$WIN_ASSET" "$MAC_ASSET" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "WUF Watchdog 最新開發版 (${SHORT_SHA})" \
+            --notes-file "$NOTES_FILE"
