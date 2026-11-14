@@ -23,6 +23,12 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\WUF-Watchdog\windows\build-wuf.ps1' -GoExecutable 'C:\Program Files\Go\bin\go.exe' -OutputDirectory 'C:\WUF\Watchdog'
 ```
 
+若要一次產出含 `Watchdog\`、`llama.cpp\`、`Models\` 的完整可壓縮資料夾結構（輸出位置改為上層目錄，例如 `C:\WUF`），可加上 `-WorkspaceLayout`：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\WUF-Watchdog\windows\build-wuf.ps1' -GoExecutable 'C:\Program Files\Go\bin\go.exe' -OutputDirectory 'C:\WUF' -WorkspaceLayout
+```
+
 這次執行的 `Bypass` 只套用於該 PowerShell 程序，不必變更整台電腦的執行原則。首次建置可能需要連線下載 Go 工具鏈，請等它結束。
 
 看到 **`Built Windows amd64 package: C:\WUF\Watchdog`** 表示建置成功。輸出資料夾必須尚未存在；如果已經建置過，請改用新的輸出資料夾，並同步調整後面的路徑。

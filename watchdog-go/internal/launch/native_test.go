@@ -35,6 +35,41 @@ func TestBundlePathsResolveAfterMoving(t *testing.T) {
 	}
 }
 
+func TestWorkspaceSiblingPathsResolveRelativeToWatchdog(t *testing.T) {
+	workspace := t.TempDir()
+	watchdogDir := filepath.Join(workspace, "Watchdog")
+	if err := os.MkdirAll(watchdogDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(watchdogDir, "launch.json")
+	data, _ := json.Marshal(Config{
+		Core:          "watchdog.exe",
+		Tray:          "tray.exe",
+		Arguments:     []string{"--dashboard", "resources/dashboard.html", "--models-dir", "../Models", "--llama", "../llama.cpp/llama-server.exe"},
+		TrayArguments: []string{"--config", "launch.json", "--assets", "resources/icons"},
+	})
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := LoadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{
+		"--dashboard", filepath.Join(watchdogDir, "resources", "dashboard.html"),
+		"--models-dir", filepath.Join(workspace, "Models"),
+		"--llama", filepath.Join(workspace, "llama.cpp", "llama-server.exe"),
+	}
+	if len(c.Arguments) != len(wantArgs) {
+		t.Fatalf("unexpected resolved arguments: %+v", c.Arguments)
+	}
+	for i := range wantArgs {
+		if c.Arguments[i] != wantArgs[i] {
+			t.Fatalf("arg[%d] = %q, want %q", i, c.Arguments[i], wantArgs[i])
+		}
+	}
+}
+
 func TestFramingRejectsTruncatedOversizeAndInvalidUTF8(t *testing.T) {
 	for _, frame := range [][]byte{{1, 0}, {4, 0, 0, 0, '{'}, {0, 0, 0, 0}, {1, 0, 1, 0}, {1, 0, 0, 0, 0xff}} {
 		if _, err := ReadMessage(bytes.NewReader(frame)); err == nil {

@@ -36,14 +36,26 @@ jobs:
         shell: pwsh
         run: |
           $goExe = (Get-Command go).Source
-          $outDir = Join-Path $env:RUNNER_TEMP 'wuf-watchdog-win'
+          $bundleDir = Join-Path $env:RUNNER_TEMP 'wuf-watchdog-win'
           $zipDir = Join-Path $env:RUNNER_TEMP 'dist'
           New-Item -ItemType Directory -Path $zipDir -Force | Out-Null
 
-          & "$PWD\windows\build-wuf.ps1" -GoExecutable $goExe -OutputDirectory $outDir
+          & "$PWD\windows\build-wuf.ps1" -GoExecutable $goExe -OutputDirectory $bundleDir -WorkspaceLayout
+
+          foreach ($required in @(
+            'Watchdog\app.exe',
+            'Watchdog\watchdog.exe',
+            'Watchdog\launch.json',
+            'llama.cpp\README.txt',
+            'Models\README.txt'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $bundleDir $required) -PathType Leaf)) {
+              throw "Missing packaged layout file: $required"
+            }
+          }
 
           $zipPath = Join-Path $zipDir 'WUF-Watchdog-dev-latest-windows-x86_64.zip'
-          Compress-Archive -Path "$outDir\*" -DestinationPath $zipPath -Force
+          Compress-Archive -Path "$bundleDir\*" -DestinationPath $zipPath -Force
           if (-not (Test-Path -LiteralPath $zipPath)) {
             throw "Missing ZIP: $zipPath"
           }
@@ -137,7 +149,7 @@ jobs:
           - **建置時間**：${BUILD_TIME}
 
           ### 下載對應檔案
-          - **Windows (x86_64)**：\`WUF-Watchdog-dev-latest-windows-x86_64.zip\`（適用於 Intel／AMD 64 位元 Windows，解壓到固定資料夾，例如 \`C:\\WUF\\Watchdog\`，依 README 設定 \`launch.json\` 後執行 \`app.exe\`）
+          - **Windows (x86_64)**：\`WUF-Watchdog-dev-latest-windows-x86_64.zip\`（適用於 Intel／AMD 64 位元 Windows。解壓後已含 \`Watchdog/\`、\`llama.cpp/\`、\`Models/\` 且 \`launch.json\` 已設好相對路徑：將官方 \`llama.cpp\` 放入 \`llama.cpp/\`、將 \`.gguf\` 模型放入 \`Models/\`，再執行 \`Watchdog/app.exe\` 即可使用）
           - **macOS (Apple Silicon arm64)**：\`WUF-Watchdog-dev-latest-macos-arm64.zip\`（解壓後將 \`WUF Watchdog.app\` 移入 \`~/Applications\`；此版本為 ad-hoc 簽署，首次開啟需依系統提示於「隱私權與安全性」允許執行）
           EOF
 

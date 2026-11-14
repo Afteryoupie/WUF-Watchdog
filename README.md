@@ -62,7 +62,7 @@ C:\WUF\Models\Qwen3-0.6B-Q8_0.gguf
 
 ### A. 準備程式套件與模型執行工具
 
-1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.2-windows-amd64.zip`**（或最新版的 `windows-x86_64` 套件），解壓縮至 `C:\WUF\Watchdog`。不要下載 Source code ZIP。維護者可依[建置文件](docs/BUILD.md)自行製作套件。
+1. 到 [WUF Watchdog Releases](https://github.com/Afteryoupie/WUF-Watchdog/releases/latest) 下載 **`WUF-Watchdog-v0.2.2-windows-amd64.zip`**（或最新版的 `windows-x86_64` 套件）。新版 `dev-latest` 解壓後會直接建立 `Watchdog\`、`llama.cpp\`、`Models\` 三個資料夾並預先設好 `launch.json`；若下載 `v0.2.2` 舊版則解壓縮至 `C:\WUF\Watchdog`。不要下載 Source code ZIP。維護者可依[建置文件](docs/BUILD.md)自行製作套件。
 2. 確認 `C:\WUF\Watchdog` 直接包含 `app.exe`、`watchdog.exe`、`tray.exe`、`native-host.exe`、`wuf-tool.exe`、`launch.json`、`install-wuf.ps1` 及 `resources` 資料夾。不要只複製單一 EXE。
 3. 到 [llama.cpp 官方 Releases](https://github.com/ggml-org/llama.cpp/releases)，展開有程式附件的版本之 **Assets**，找名稱包含 **`bin-win-cpu-x64.zip`** 的附件。此處先使用 CPU 版確認流程；不要下載 Source code 或只有 `cudart` 的附件。若最新版本只有標記檔，往下找有二進位套件的版本。
 4. 將 llama.cpp 的 ZIP 完整解壓縮至 **`C:\WUF\llama.cpp`**，確認其中有 **`llama-server.exe`**。保留同包的 DLL 等檔案，不要只抽出 EXE。
@@ -85,7 +85,9 @@ C:\WUF\
 
 ### B. 告訴 Watchdog 檔案放在哪裡
 
-用記事本開啟 **`C:\WUF\Watchdog\launch.json`**，將內容替換成下方設定，再儲存。請確認檔名仍為 `launch.json`，沒有變成 `launch.json.txt`。
+> **提示**：新版建置（含 `dev-latest`）已在 `Watchdog\launch.json` 預先填好相對路徑（`../Models` 與 `../llama.cpp/llama-server.exe`）；只要維持 `Watchdog\`、`llama.cpp\`、`Models\` 並列在同一個資料夾內，**不用修改 `launch.json` 就能直接執行**。只有使用 `v0.2.2` 舊版或把資料夾擺到其他路徑時，才需要照下方修改。
+
+用記事本開啟 **`C:\WUF\Watchdog\launch.json`**（或你解壓目錄下的 `Watchdog\launch.json`），將內容替換成下方設定，再儲存。請確認檔名仍為 `launch.json`，沒有變成 `launch.json.txt`。
 
 ```json
 {
