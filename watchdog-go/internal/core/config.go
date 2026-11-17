@@ -53,6 +53,10 @@ func DefaultConfig() (Config, error) {
 	c.Binaries.AppleAPI = os.Getenv("WUF_APPLE_API")
 	if runtime.GOOS == "darwin" {
 		c.Binaries.FM = "/usr/bin/fm"
+		if c.Binaries.AppleAPI == "" {
+			path := filepath.Join(home, "LLM", "Tools", "apple-intelligence-api", "AppleIntelligenceApi")
+			c.Binaries.AppleAPI, _ = exec.LookPath(path)
+		}
 	}
 	return c, nil
 }

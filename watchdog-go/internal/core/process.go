@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"wuf-translate/watchdog-go/internal/tooling"
 )
 
 var fmAvailCache struct {
@@ -85,10 +87,11 @@ func startProcess(ctx context.Context, c Config, model Model) (*child, error) {
 	if model.Type == "apple" && !isFMVerified(argv[0]) {
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
-		check := exec.CommandContext(ctx, argv[0], "available", "--model", "system")
+		check := exec.CommandContext(ctx, argv[0], "models")
 		configureProcess(check)
-		if output, err := check.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("Apple model unavailable: %w: %s", err, output)
+		output, err := check.CombinedOutput()
+		if status, msg := tooling.FMAvailability(output, err); status != "available" {
+			return nil, fmt.Errorf("Apple model unavailable: %s", msg)
 		}
 		markFMVerified(argv[0])
 	}

@@ -6,6 +6,7 @@
 執行 `mac/build-apple-translation.command` 建置；腳本套用 1MB HTTP body 限制修正。
 WUF Watchdog只顯示一個「Apple Foundation Models」，優先使用此 Swift API；
 未建置時才使用原生 fm 作為備援。
+macOS 預設尋找 `~/LLM/Tools/apple-intelligence-api/AppleIntelligenceApi`，可用 `WUF_APPLE_API` 或 `--apple-api` 指定其他安裝位置。
 
 路徑：WUF Translate → 127.0.0.1:8080/v1 → WUF Watchdog →
 127.0.0.1:8081/api/v1 → FoundationModels。

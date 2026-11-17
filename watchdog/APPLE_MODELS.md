@@ -6,7 +6,7 @@ http://127.0.0.1:8080/v1。請求中的模型名稱會轉為 Apple 的 `system`�
 
 首次使用須由使用者在終端機執行 `sudo fm license`，閱讀並接受全機適用的
 Apple CLI 條款，並在系統設定中啟用 Apple Intelligence。可用
-`fm available --model system` 確認可用性。
+`fm models` 確認可用性。
 
 後端使用 `fm serve --host 127.0.0.1 --port 8081`，
 並在 API 請求中明確指定 `model: system` 選用本地模型。

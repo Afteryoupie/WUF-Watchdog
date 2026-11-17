@@ -131,10 +131,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\WUF\Watchdog\install
 3. 按 Command + 空白鍵，搜尋「終端機」並開啟，貼上以下指令，按 Enter：
 
 ```sh
-/usr/bin/fm available --model system
+/usr/bin/fm models
 ```
 
-看到 **`System model available`** 表示本機 Apple 模型可用。若提示尚未接受命令列工具條款，執行：
+看到 **`✓ system`** 表示本機 Apple 模型可用。若提示尚未接受命令列工具條款，執行：
 
 ```sh
 sudo /usr/bin/fm license
@@ -239,7 +239,8 @@ sudo /usr/bin/fm license
 | Releases 找不到對應平台附件 | 確認是否展開該版本的 **Assets**，並選擇 `macos-arm64` 或 `windows-x86_64`（`v0.2.2` 舊版為 `windows-amd64`）壓縮檔；Source code ZIP 不能直接執行。其他架構需由開發者依建置文件製作 |
 | Windows 說缺少 DLL | 將 llama.cpp 整包解壓縮，保留 EXE 旁的 DLL；不要只複製單一 EXE |
 | macOS 找不到 `/usr/bin/fm` | 本頁預設的 Apple 流程需要 macOS 27；有 Apple Intelligence 不代表一定有這個工具 |
-| Apple 模型不可用 | 執行 `/usr/bin/fm available --model system`，依提示檢查 Apple Intelligence 下載狀態、語言／地區及工具條款 |
+| Apple 模型不可用 | 執行 `/usr/bin/fm models`，依提示檢查 Apple Intelligence 下載狀態、語言／地區及工具條款 |
+| 更新 macOS 後，Apple 模型顯示 `modelNotReady` | macOS 可能正在下載或準備新版的本機模型。請接上電源並保持 Wi-Fi 連線，稍後再執行 `/usr/bin/fm models`。等 `system` 顯示 `✓` 後，再啟動 Watchdog 引擎。 |
 | macOS 阻擋應用程式或 llama-server | 確認下載來源，查看「隱私權與安全性」的允許開啟提示 |
 | 開不了 `127.0.0.1:8080` | 先開啟 `app.exe` 或 `.app`；檢查 `launch.json` 是否為合法純文字 JSON、路徑是否正確 |
 | 顯示連接埠已被使用 | 可能已有 Watchdog 或其他服務使用 8080；先辨認並關閉衝突的服務，再重試。不要同時啟動另一個使用 8080 的 llama-server |

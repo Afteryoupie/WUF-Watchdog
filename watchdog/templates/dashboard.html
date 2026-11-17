@@ -587,7 +587,7 @@ function renderSetup(st){
   const fmBox=$('setup-fm-box'),fmStatus=$('setup-fm-status'),fmBtn=$('btn-copy-fm-license');
   if(st.fm_status&&st.fm_status!=='not_applicable'){
     fmBox.hidden=false;
-    const fmLabels={available:'Apple 模型：系統模型可用',license_required:'Apple 模型：尚未接受命令列條款（需於終端機執行 sudo /usr/bin/fm license）',missing:'Apple 模型：找不到 /usr/bin/fm（需 macOS 27）',unavailable:'Apple 模型：目前不可用'+(st.fm_message?'（'+st.fm_message+'）':'')};
+    const fmLabels={available:'Apple 模型：系統模型可用',license_required:'Apple 模型：尚未接受命令列條款（需於終端機執行 sudo /usr/bin/fm license）',missing:'Apple 模型：找不到 /usr/bin/fm（需 macOS 27）',unavailable:(st.fm_message||'').includes('modelNotReady')?'Apple 模型：系統模型尚未就緒（modelNotReady）。若剛更新 macOS，請接上電源並保持 Wi-Fi 連線，等待本機模型更新完成後，再啟動引擎。':'Apple 模型：目前不可用'+(st.fm_message?'（'+st.fm_message+'）':'')};
     fmStatus.textContent=fmLabels[st.fm_status]||'Apple 模型：未知';
     fmBtn.hidden=st.fm_status!=='license_required';
   }else{fmBox.hidden=true;fmBtn.hidden=true}

@@ -87,7 +87,7 @@ func TestQueryFMClassification(t *testing.T) {
 	tmp := t.TempDir()
 	okScript := filepath.Join(tmp, "fm-ok")
 	licScript := filepath.Join(tmp, "fm-lic")
-	if err := os.WriteFile(okScript, []byte("#!/bin/sh\necho 'System model available'\n"), 0755); err != nil {
+	if err := os.WriteFile(okScript, []byte("#!/bin/sh\necho '✓ system'\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(licScript, []byte("#!/bin/sh\necho 'Please accept license terms via sudo fm license' >&2\nexit 1\n"), 0755); err != nil {
@@ -98,5 +98,25 @@ func TestQueryFMClassification(t *testing.T) {
 	}
 	if s, _ := queryFM(context.Background(), licScript); s != "license_required" {
 		t.Fatalf("expected license_required, got %q", s)
+	}
+}
+
+func TestQueryFMModels(t *testing.T) {
+	for _, tc := range []struct{ name, output, exit, status, message string }{
+		{"local ready cloud unavailable", "  ✓ system\n  ✗ pcc (unavailable)", "1", "available", "✓ system"},
+		{"local not ready", "\033[31m  ✗ system (modelNotReady)\033[0m\n  ✓ pcc", "0", "unavailable", "✗ system (modelNotReady)"},
+		{"unknown output", "unexpected output", "0", "unavailable", "unexpected output"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := filepath.Join(t.TempDir(), "fm")
+			script := "#!/bin/sh\n[ \"$*\" = models ] || { echo 'invalid arguments'; exit 64; }\nprintf '" + tc.output + "\\n'\nexit " + tc.exit + "\n"
+			if err := os.WriteFile(bin, []byte(script), 0755); err != nil {
+				t.Fatal(err)
+			}
+			status, msg := queryFM(context.Background(), bin)
+			if status != tc.status || msg != tc.message {
+				t.Fatalf("got (%q, %q), want (%q, %q)", status, msg, tc.status, tc.message)
+			}
+		})
 	}
 }

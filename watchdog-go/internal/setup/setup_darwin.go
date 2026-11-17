@@ -215,9 +215,9 @@ func queryFM(ctx context.Context, fmBin string) (string, string) {
 
 	fmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(fmCtx, fmBin, "available", "--model", "system").CombinedOutput()
-	msg := strings.TrimSpace(string(out))
-	if err == nil {
+	out, err := exec.CommandContext(fmCtx, fmBin, "models").CombinedOutput()
+	status, msg := tooling.FMAvailability(out, err)
+	if status == "available" {
 		fmStatusCache.mu.Lock()
 		fmStatusCache.bin = fmBin
 		fmStatusCache.status = "available"
@@ -226,14 +226,7 @@ func queryFM(ctx context.Context, fmBin string) (string, string) {
 		fmStatusCache.mu.Unlock()
 		return "available", msg
 	}
-	lower := strings.ToLower(msg)
-	if strings.Contains(lower, "license") || strings.Contains(lower, "terms") {
-		return "license_required", msg
-	}
-	if msg == "" {
-		msg = err.Error()
-	}
-	return "unavailable", msg
+	return status, msg
 }
 
 func queryPlatformStatus(ctx context.Context, exePath, fmBin string) Status {
