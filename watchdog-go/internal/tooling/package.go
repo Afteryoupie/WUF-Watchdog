@@ -19,7 +19,7 @@ import (
 	"wuf-translate/watchdog-go/internal/launch"
 )
 
-const Version = "0.2.3"
+const Version = "0.2.4"
 
 const LoginLabel = "local.wuf.translate.watchdog"
 

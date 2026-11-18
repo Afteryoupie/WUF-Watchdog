@@ -43,9 +43,12 @@ func TestWorkspaceSiblingPathsResolveRelativeToWatchdog(t *testing.T) {
 	}
 	path := filepath.Join(watchdogDir, "launch.json")
 	data, _ := json.Marshal(Config{
-		Core:          "watchdog.exe",
-		Tray:          "tray.exe",
-		Arguments:     []string{"--dashboard", "resources/dashboard.html", "--models-dir", "../Models", "--llama", "../llama.cpp/llama-server.exe"},
+		Core: "watchdog.exe",
+		Tray: "tray.exe",
+		Arguments: []string{
+			"--dashboard", "resources/dashboard.html", "--models-dir", "../Models", "--llama", "../llama.cpp/llama-server.exe",
+			"--mlx-python", "../.venv/bin/python3", "--omlx-bin=../.venv/bin/omlx", "--plamo-mlx-dir", "../Models/PLaMo",
+		},
 		TrayArguments: []string{"--config", "launch.json", "--assets", "resources/icons"},
 	})
 	if err := os.WriteFile(path, data, 0600); err != nil {
@@ -59,6 +62,9 @@ func TestWorkspaceSiblingPathsResolveRelativeToWatchdog(t *testing.T) {
 		"--dashboard", filepath.Join(watchdogDir, "resources", "dashboard.html"),
 		"--models-dir", filepath.Join(workspace, "Models"),
 		"--llama", filepath.Join(workspace, "llama.cpp", "llama-server.exe"),
+		"--mlx-python", filepath.Join(workspace, ".venv", "bin", "python3"),
+		"--omlx-bin=" + filepath.Join(workspace, ".venv", "bin", "omlx"),
+		"--plamo-mlx-dir", filepath.Join(workspace, "Models", "PLaMo"),
 	}
 	if len(c.Arguments) != len(wantArgs) {
 		t.Fatalf("unexpected resolved arguments: %+v", c.Arguments)

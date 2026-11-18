@@ -1,5 +1,10 @@
 # 版本紀錄
 
+## v0.2.4（2026-11-18）
+
+- Apple Foundation Models 一次處理一筆推論，其他模型可同時轉送最多四筆。GGUF 啟用四個 llama-server 槽位。
+- macOS 可選用 MLX LM、oMLX 或 PLaMo 3 Translate MLX，並支援傳入 PLaMo GGUF 的目標語言。
+
 ## v0.2.3（2026-11-17）
 
 - macOS 自動尋找已安裝的 Apple 文字轉換後端，保留手動路徑設定。

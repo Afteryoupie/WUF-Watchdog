@@ -101,6 +101,8 @@ func Discover(c Config) ([]Model, error) {
 			}
 			if weight != "" {
 				add(name, weight, "gguf", isTranslation(name))
+			} else if kind := mlxModelType(c, path); kind != "" {
+				add(name, path, kind, kind == "plamo-mlx" || isTranslation(name))
 			}
 		} else if info.Mode().IsRegular() && strings.EqualFold(filepath.Ext(name), ".gguf") {
 			id := strings.TrimSuffix(name, filepath.Ext(name))

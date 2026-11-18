@@ -126,7 +126,11 @@ func LoadConfig(path string) (Config, error) {
 	c.Arguments = filterLegacy(c.Arguments)
 	c.TrayArguments = filterLegacy(c.TrayArguments)
 	// Only documented path flags are bundle-relative; other arguments remain literal.
-	pathFlags := map[string]bool{"--dashboard": true, "--models-dir": true, "--llama": true, "--k2-llama": true, "--fm": true, "--apple-api": true, "--config": true, "--assets": true, "--swift": true}
+	pathFlags := map[string]bool{
+		"--dashboard": true, "--models-dir": true, "--llama": true, "--k2-llama": true, "--fm": true, "--apple-api": true,
+		"--mlx-python": true, "--omlx-bin": true, "--plamo-mlx-dir": true,
+		"--config": true, "--assets": true, "--swift": true,
+	}
 	for _, args := range [][]string{c.Arguments, c.TrayArguments} {
 		for i := 0; i < len(args); i++ {
 			name, value, joined := strings.Cut(args[i], "=")

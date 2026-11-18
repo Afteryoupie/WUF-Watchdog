@@ -14,6 +14,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -492,6 +493,17 @@ func AdaptPayload(payload map[string]any, model Model) {
 		payload["model"] = "system"
 		if _, hasStream := payload["stream"]; !hasStream {
 			payload["stream"] = false
+		}
+	case "omlx":
+		payload["model"] = model.ID
+	case "plamo-mlx":
+		payload["model"] = model.Path
+		adaptPLaMoPayload(payload, target)
+	case "gguf":
+		payload["model"] = model.Path
+		if strings.Contains(lowerID, "plamo-3-translate") ||
+			strings.Contains(strings.ToLower(filepath.Base(model.Path)), "plamo-3-translate") {
+			setPLaMoTarget(payload, target)
 		}
 	default:
 		payload["model"] = model.Path

@@ -9,14 +9,6 @@ import (
 	"time"
 )
 
-func appleManager(t *testing.T) *Manager {
-	t.Helper()
-	m := testManager(t)
-	m.current.Type = "apple-api"
-	m.models[0].Type = "apple-api"
-	return m
-}
-
 func receiveStart(t *testing.T, started <-chan struct{}) {
 	t.Helper()
 	select {
@@ -26,17 +18,23 @@ func receiveStart(t *testing.T, started <-chan struct{}) {
 	}
 }
 
-func TestAppleTwoRequestsOverlapAndThirdWaits(t *testing.T) {
-	for _, backend := range []string{"apple-api", "apple"} {
-		t.Run(backend, func(t *testing.T) {
-			m := appleManager(t)
-			m.current.Type, m.models[0].Type = backend, backend
+func TestModelConcurrencyLimit(t *testing.T) {
+	for _, tc := range []struct {
+		backend string
+		limit   int
+	}{
+		{"apple-api", 1}, {"apple", 1}, {"gguf", 4},
+		{"mlx", 4}, {"omlx", 4}, {"plamo-mlx", 4},
+	} {
+		t.Run(tc.backend, func(t *testing.T) {
+			m := testManager(t)
+			m.current.Type, m.models[0].Type = tc.backend, tc.backend
 			var launches atomic.Int32
 			start := m.start
 			m.start = func(ctx context.Context, model Model) (*child, error) { launches.Add(1); return start(ctx, model) }
-			started, finish := make(chan struct{}, 3), make(chan struct{})
+			started, finish := make(chan struct{}, tc.limit+1), make(chan struct{})
 			defer close(finish)
-			results := make(chan error, 3)
+			results := make(chan error, tc.limit+1)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			run := func(ctx context.Context, alias string) {
@@ -52,10 +50,12 @@ func TestAppleTwoRequestsOverlapAndThirdWaits(t *testing.T) {
 			}
 			go run(ctx, "default")
 			receiveStart(t, started)
-			go run(context.Background(), m.current.Path)
-			receiveStart(t, started)
-			if got := m.Snapshot().ActiveRequests; got != 2 {
-				t.Fatalf("active=%d, want 2", got)
+			for i := 1; i < tc.limit; i++ {
+				go run(context.Background(), m.models[0].Path)
+				receiveStart(t, started)
+			}
+			if got := m.Snapshot().ActiveRequests; got != tc.limit {
+				t.Fatalf("active=%d, want %d", got, tc.limit)
 			}
 			if got := launches.Load(); got != 1 {
 				t.Fatalf("launched %d model processes", got)
@@ -69,7 +69,7 @@ func TestAppleTwoRequestsOverlapAndThirdWaits(t *testing.T) {
 			go run(context.Background(), "")
 			select {
 			case <-started:
-				t.Fatal("third request bypassed concurrency limit")
+				t.Fatal("request bypassed concurrency limit")
 			case <-time.After(30 * time.Millisecond):
 			}
 			cancel()
@@ -77,13 +77,13 @@ func TestAppleTwoRequestsOverlapAndThirdWaits(t *testing.T) {
 				t.Fatal(err)
 			}
 			receiveStart(t, started)
-			if m.Snapshot().ActiveRequests != 2 {
+			if m.Snapshot().ActiveRequests != tc.limit {
 				t.Fatal("cancel did not release exactly one slot")
 			}
 			if err := m.Stop(); err != nil {
 				t.Fatal(err)
 			}
-			for i := 0; i < 2; i++ {
+			for i := 0; i < tc.limit; i++ {
 				if err := <-results; !errors.Is(err, context.Canceled) {
 					t.Fatal(err)
 				}
@@ -95,9 +95,13 @@ func TestAppleTwoRequestsOverlapAndThirdWaits(t *testing.T) {
 	}
 }
 
-func TestAppleQueuedCancellationAndModelSwitchWaitForBothResponses(t *testing.T) {
-	m := appleManager(t)
-	other := m.current
+func TestQueuedCancellationAndModelSwitchWaitForAllResponses(t *testing.T) {
+	m := testManager(t)
+	fixture, ok := FindModel(m.models, "fixture")
+	if !ok {
+		t.Fatal("GGUF fixture is missing")
+	}
+	other := fixture
 	other.ID, other.Path = "other", "/fixture/other.gguf"
 	m.models = append(m.models, other)
 	started := make(chan struct{}, 2)
@@ -105,7 +109,7 @@ func TestAppleQueuedCancellationAndModelSwitchWaitForBothResponses(t *testing.T)
 	results := make(chan error, 2)
 	for i := 0; i < 2; i++ {
 		go func(i int) {
-			results <- m.WithModel(context.Background(), "", func(ctx context.Context, _ Model) error {
+			results <- m.WithModel(context.Background(), fixture.ID, func(ctx context.Context, _ Model) error {
 				started <- struct{}{}
 				select {
 				case <-finish[i]:
@@ -120,7 +124,7 @@ func TestAppleQueuedCancellationAndModelSwitchWaitForBothResponses(t *testing.T)
 	receiveStart(t, started)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	if err := m.WithModel(ctx, "", func(context.Context, Model) error { t.Error("cancelled queued request entered inference"); return nil }); !errors.Is(err, context.DeadlineExceeded) {
+	if err := m.WithModel(ctx, other.ID, func(context.Context, Model) error { t.Error("cancelled queued request entered inference"); return nil }); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
 	}
 	switched := make(chan error, 1)

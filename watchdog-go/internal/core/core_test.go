@@ -137,7 +137,7 @@ func TestCommandsUseCorePaths(t *testing.T) {
 		args       []string
 		health     string
 	}{
-		{"gguf", model.Path, []string{"--model", model.Path, "--host", "127.0.0.1", "--port", "8081", "--ctx-size", "32768", "--n-gpu-layers", "99", "--batch-size", "512", "--ubatch-size", "512", "--flash-attn", "on", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"}, "/health"},
+		{"gguf", model.Path, []string{"--model", model.Path, "--host", "127.0.0.1", "--port", "8081", "--ctx-size", "32768", "--parallel", "4", "--n-gpu-layers", "99", "--batch-size", "512", "--ubatch-size", "512", "--flash-attn", "on", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"}, "/health"},
 		{"apple-api", "permissive", []string{"serve", "--hostname", "127.0.0.1", "--port", "8081"}, "/api/v1/models"},
 		{"apple", "system", []string{"serve", "--host", "127.0.0.1", "--port", "8081"}, "/v1/models"},
 	}
@@ -169,7 +169,7 @@ func TestCommandsUseCorePaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(argv[1:], " ") != "-m "+model.Path+" --host 127.0.0.1 --port 8081 -c 16384 -np 1 -ngl 99 --jinja --no-webui" {
+	if strings.Join(argv[1:], " ") != "-m "+model.Path+" --host 127.0.0.1 --port 8081 -c 16384 -np 4 -ngl 99 --jinja --no-webui" {
 		t.Fatal(argv)
 	}
 	c.Binaries.K2Llama = ""

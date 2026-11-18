@@ -71,13 +71,14 @@ func Command(c Config, model Model) ([]string, error) {
 	var argv []string
 	switch model.Type {
 	case "gguf":
+		parallel := strconv.Itoa(modelConcurrency(model))
 		k2 := strings.Contains(strings.ToLower(model.ID+" "+model.Name+" "+model.Path), "k2-horizon")
 		if k2 {
 			argv = []string{c.Binaries.K2Llama, "-m", model.Path, "--host", "127.0.0.1", "--port", port,
-				"-c", "16384", "-np", "1", "-ngl", "99", "--jinja", "--no-webui"}
+				"-c", "16384", "-np", parallel, "-ngl", "99", "--jinja", "--no-webui"}
 		} else {
 			argv = []string{c.Binaries.Llama, "--model", model.Path, "--host", "127.0.0.1", "--port", port,
-				"--ctx-size", ctx, "--n-gpu-layers", "99", "--batch-size", "512", "--ubatch-size", "512",
+				"--ctx-size", ctx, "--parallel", parallel, "--n-gpu-layers", "99", "--batch-size", "512", "--ubatch-size", "512",
 				"--flash-attn", "on", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0"}
 			if projector := Projector(c, model); projector != "" {
 				argv = append(argv, "--mmproj", projector)
@@ -87,6 +88,17 @@ func Command(c Config, model Model) ([]string, error) {
 		argv = []string{c.Binaries.AppleAPI, "serve", "--hostname", "127.0.0.1", "--port", port}
 	case "apple":
 		argv = []string{c.Binaries.FM, "serve", "--host", "127.0.0.1", "--port", port}
+	case "mlx":
+		argv = []string{c.Binaries.MLXPython, "-m", "mlx_lm.server", "--model", model.Path, "--host", "127.0.0.1", "--port", port}
+	case "omlx":
+		argv = []string{c.Binaries.OMLX, "serve", "--model-dir", model.Path, "--host", "127.0.0.1", "--port", port,
+			"--log-level", "warning", "--base-path", filepath.Join(c.DataDir, "omlx"), "--no-hf-cache"}
+	case "plamo-mlx":
+		if !filepath.IsAbs(c.PLaMoMLXDir) || model.Path != filepath.Clean(c.PLaMoMLXDir) {
+			return nil, fmt.Errorf("configure the trusted PLaMo MLX directory")
+		}
+		argv = []string{c.Binaries.MLXPython, "-B", filepath.Join(model.Path, "serve.py"), "--model", model.Path,
+			"--host", "127.0.0.1", "--port", port, "--trust-remote-code"}
 	default:
 		return nil, fmt.Errorf("unsupported backend type %q", model.Type)
 	}
@@ -101,10 +113,12 @@ func Command(c Config, model Model) ([]string, error) {
 
 func HealthPath(model Model) string {
 	switch model.Type {
-	case "apple":
+	case "apple", "mlx":
 		return "/v1/models"
 	case "apple-api":
 		return "/api/v1/models"
+	case "plamo-mlx":
+		return "/v1/chat/completions"
 	default:
 		return "/health"
 	}

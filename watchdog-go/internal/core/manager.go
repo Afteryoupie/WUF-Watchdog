@@ -2,7 +2,9 @@
 package core
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -106,11 +108,31 @@ func managerForModels(c Config, models []Model, last string) *Manager {
 	}
 	m.start = func(ctx context.Context, model Model) (*child, error) { return startProcess(ctx, c, model) }
 	m.probe = func(ctx context.Context, model Model) error {
-		request, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://127.0.0.1:%d%s", c.InternalPort, HealthPath(model)), nil)
+		method := http.MethodGet
+		var body io.Reader
+		probeClient := *client
+		if model.Type == "plamo-mlx" {
+			// PFN's model list is served even when the tokenizer failed to load.
+			method = http.MethodPost
+			payload, err := json.Marshal(map[string]any{
+				"model": model.Path, "max_tokens": 1, "temperature": 0,
+				"messages":             []map[string]string{{"role": "user", "content": "Hello."}},
+				"chat_template_kwargs": map[string]string{"target_lang": "ja"},
+			})
+			if err != nil {
+				return err
+			}
+			body = bytes.NewReader(payload)
+			probeClient.Timeout = 0 // Use the startup context while the model warms up.
+		}
+		request, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("http://127.0.0.1:%d%s", c.InternalPort, HealthPath(model)), body)
 		if err != nil {
 			return err
 		}
-		response, err := client.Do(request)
+		if body != nil {
+			request.Header.Set("Content-Type", "application/json")
+		}
+		response, err := probeClient.Do(request)
 		if err != nil {
 			return err
 		}
@@ -217,9 +239,9 @@ func (m *Manager) acquireIdle(ctx context.Context, wait bool) error {
 
 func modelConcurrency(model Model) int {
 	if model.Type == "apple" || model.Type == "apple-api" {
-		return 2
+		return 1
 	}
-	return 1
+	return 4
 }
 
 func (m *Manager) stopModel() error {
@@ -276,7 +298,7 @@ func (m *Manager) wakeLocked(ctx context.Context) error {
 		return errors.New("no available model")
 	}
 	timeout := m.cfg.StartupTimeout
-	if model.Type != "gguf" {
+	if model.Type == "apple" || model.Type == "apple-api" {
 		timeout = min(timeout, 25*time.Second)
 	}
 	startup, cancel := context.WithTimeout(ctx, timeout)
@@ -401,8 +423,8 @@ func (m *Manager) Switch(ctx context.Context, alias string) error {
 	return m.wakeLocked(ctx)
 }
 
-// WithModel leases a model for the entire response, including SSE. Apple
-// requests may overlap; model switches and shutdown still respect every lease.
+// WithModel leases a model for the entire response, including SSE.
+// Model switches and shutdown respect every lease.
 // The callback must propagate ctx to its upstream HTTP request.
 func (m *Manager) WithModel(ctx context.Context, alias string, send func(context.Context, Model) error) error {
 	queue, cancelQueue := context.WithTimeout(ctx, m.cfg.QueueTimeout)

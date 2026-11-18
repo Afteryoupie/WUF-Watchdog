@@ -13,10 +13,12 @@ import (
 
 type Binaries struct {
 	Llama, K2Llama, FM, AppleAPI string
+	MLXPython, OMLX              string
 }
 
 type Config struct {
 	ModelsDir, DataDir string
+	PLaMoMLXDir        string
 	Platform           string
 	Binaries           Binaries
 	InternalPort       int
@@ -52,6 +54,9 @@ func DefaultConfig() (Config, error) {
 	c.Binaries.K2Llama = os.Getenv("WUF_K2_LLAMA")
 	c.Binaries.AppleAPI = os.Getenv("WUF_APPLE_API")
 	if runtime.GOOS == "darwin" {
+		c.Binaries.MLXPython = os.Getenv("WUF_MLX_PYTHON")
+		c.Binaries.OMLX = os.Getenv("WUF_OMLX")
+		c.PLaMoMLXDir = os.Getenv("WUF_PLAMO_MLX_DIR")
 		c.Binaries.FM = "/usr/bin/fm"
 		if c.Binaries.AppleAPI == "" {
 			path := filepath.Join(home, "LLM", "Tools", "apple-intelligence-api", "AppleIntelligenceApi")
